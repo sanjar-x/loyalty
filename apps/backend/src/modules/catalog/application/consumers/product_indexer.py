@@ -187,3 +187,152 @@ register_event_handler("ProductCreatedEvent", _on_product_event)
 register_event_handler("ProductStatusChangedEvent", _on_product_event)
 register_event_handler("ProductUpdatedEvent", _on_product_event)
 register_event_handler("ProductDeletedEvent", _on_product_event)
+
+# SKU-level events refresh denormalised ``effective_price`` / ``in_stock``
+# / ``sku_count`` / ``sku_codes`` on the parent product doc. All four
+# carry ``product_id`` in ``required_fields`` so the same bridge works.
+# SKUPricedEvent / SKUPricingFailedEvent are the most frequent — they
+# fire on every ADR-005 autonomous recompute pass; the inbox guard
+# (``run_inbox_idempotent``) makes the storm idempotent.
+register_event_handler("SKUAddedEvent", _on_product_event)
+register_event_handler("SKUDeletedEvent", _on_product_event)
+register_event_handler("SKUPricedEvent", _on_product_event)
+register_event_handler("SKUPricingFailedEvent", _on_product_event)
+
+# Variant + media events also touch denormalised doc fields
+# (variant_count / variant_titles / image_url). Same bridge.
+register_event_handler("VariantAddedEvent", _on_product_event)
+register_event_handler("VariantDeletedEvent", _on_product_event)
+register_event_handler("MediaAssetAttachedEvent", _on_product_event)
+register_event_handler("MediaAssetDetachedEvent", _on_product_event)
+
+
+# ---------------------------------------------------------------------------
+# Brand / Category fan-out — bulk reindex on rename / slug change
+# ---------------------------------------------------------------------------
+
+
+@broker.task(
+    queue="catalog_indexer",
+    exchange="taskiq_rpc_exchange",
+    routing_key="catalog.brand.fan_out",
+    max_retries=3,
+    retry_on_error=True,
+    timeout=600,
+)
+@inject
+async def fan_out_brand_reindex_task(
+    payload: dict,
+    *,
+    hydration: FromDishka[IProductHydrationReader],
+    inbox: FromDishka[IInboxStore],
+    session: FromDishka[AsyncSession],
+) -> dict:
+    """Re-enqueue every product of the given brand for reindex.
+
+    Long-running (timeout 600s) because the fan-out has to stream the
+    full id set and emit one ``index_product_task`` per product. The
+    actual indexing happens in those tasks — this one just publishes
+    them, so the per-task lock window is short.
+    """
+    return await run_inbox_idempotent(
+        payload=payload,
+        consumer_name="catalog.BrandFanOut",
+        inbox=inbox,
+        session=session,
+        body=lambda: _do_brand_fan_out(payload, hydration),
+    )
+
+
+async def _do_brand_fan_out(payload: dict, hydration: IProductHydrationReader) -> None:
+    raw = payload.get("brand_id")
+    if raw is None:
+        logger.warning("brand_fan_out.skip", reason="missing_brand_id")
+        return
+    try:
+        brand_id = uuid.UUID(str(raw))
+    except TypeError, ValueError:
+        logger.warning("brand_fan_out.skip", reason="bad_brand_id", raw=str(raw))
+        return
+
+    enqueued = 0
+    async for product_id in hydration.iter_product_ids_by_brand(brand_id):
+        await index_product_task.kicker().kiq(  # ty:ignore[no-matching-overload]
+            payload={"product_id": str(product_id)}
+        )
+        enqueued += 1
+    logger.info("brand_fan_out.done", brand_id=str(brand_id), enqueued=enqueued)
+
+
+@broker.task(
+    queue="catalog_indexer",
+    exchange="taskiq_rpc_exchange",
+    routing_key="catalog.category.fan_out",
+    max_retries=3,
+    retry_on_error=True,
+    timeout=600,
+)
+@inject
+async def fan_out_category_reindex_task(
+    payload: dict,
+    *,
+    hydration: FromDishka[IProductHydrationReader],
+    inbox: FromDishka[IInboxStore],
+    session: FromDishka[AsyncSession],
+) -> dict:
+    """Symmetric to :func:`fan_out_brand_reindex_task` for categories."""
+    return await run_inbox_idempotent(
+        payload=payload,
+        consumer_name="catalog.CategoryFanOut",
+        inbox=inbox,
+        session=session,
+        body=lambda: _do_category_fan_out(payload, hydration),
+    )
+
+
+async def _do_category_fan_out(
+    payload: dict, hydration: IProductHydrationReader
+) -> None:
+    raw = payload.get("category_id")
+    if raw is None:
+        logger.warning("category_fan_out.skip", reason="missing_category_id")
+        return
+    try:
+        category_id = uuid.UUID(str(raw))
+    except TypeError, ValueError:
+        logger.warning("category_fan_out.skip", reason="bad_category_id", raw=str(raw))
+        return
+
+    enqueued = 0
+    async for product_id in hydration.iter_product_ids_by_category(category_id):
+        await index_product_task.kicker().kiq(  # ty:ignore[no-matching-overload]
+            payload={"product_id": str(product_id)}
+        )
+        enqueued += 1
+    logger.info(
+        "category_fan_out.done",
+        category_id=str(category_id),
+        enqueued=enqueued,
+    )
+
+
+async def _on_brand_updated(payload: dict, correlation_id: str | None = None) -> None:
+    await (
+        fan_out_brand_reindex_task.kicker()
+        .with_labels(**_labels(correlation_id))
+        .kiq(payload=payload)  # ty:ignore[no-matching-overload]
+    )
+
+
+async def _on_category_updated(
+    payload: dict, correlation_id: str | None = None
+) -> None:
+    await (
+        fan_out_category_reindex_task.kicker()
+        .with_labels(**_labels(correlation_id))
+        .kiq(payload=payload)  # ty:ignore[no-matching-overload]
+    )
+
+
+register_event_handler("BrandUpdatedEvent", _on_brand_updated)
+register_event_handler("CategoryUpdatedEvent", _on_category_updated)

@@ -250,3 +250,27 @@ class IProductHydrationReader(ABC):
         keyset) so 10M-document reindex does not load the world into
         memory.
         """
+
+    @abstractmethod
+    def iter_product_ids_by_brand(
+        self, brand_id: uuid.UUID
+    ) -> AsyncIterator[uuid.UUID]:
+        """Yield non-deleted product ids whose ``brand_id`` matches.
+
+        Used by the brand-rename fan-out: ``brand_name`` is denormalised
+        into every product doc, so an UPDATE to ``brands.name`` requires
+        reindexing all affected products. Streams (yield-per-row) so a
+        rename on a brand with 100k products doesn't load the id set
+        into memory.
+        """
+
+    @abstractmethod
+    def iter_product_ids_by_category(
+        self, category_id: uuid.UUID
+    ) -> AsyncIterator[uuid.UUID]:
+        """Yield non-deleted product ids whose ``primary_category_id`` matches.
+
+        Symmetric to :meth:`iter_product_ids_by_brand` for category
+        renames / slug changes (``category_full_slug`` is denormalised
+        on every product doc).
+        """

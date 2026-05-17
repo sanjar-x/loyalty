@@ -91,6 +91,38 @@ class ProductHydrationAdapter(IProductHydrationReader):
                 yield await self._build_doc(row)
             cursor = batch[-1].product_id
 
+    async def iter_product_ids_by_brand(  # type: ignore[override]
+        self, brand_id: uuid.UUID
+    ) -> AsyncIterator[uuid.UUID]:
+        """Stream non-deleted product ids for the given brand."""
+        async for product_id in self._iter_ids_by(OrmProduct.brand_id == brand_id):
+            yield product_id
+
+    async def iter_product_ids_by_category(  # type: ignore[override]
+        self, category_id: uuid.UUID
+    ) -> AsyncIterator[uuid.UUID]:
+        """Stream non-deleted product ids for the given primary category."""
+        async for product_id in self._iter_ids_by(
+            OrmProduct.primary_category_id == category_id
+        ):
+            yield product_id
+
+    async def _iter_ids_by(self, predicate: Any) -> AsyncIterator[uuid.UUID]:
+        """Server-side scroll over ``products.id`` matching ``predicate``.
+
+        ``yield_per`` keeps the result-set memory-bounded — even when a
+        rename hits a brand with 100k+ products the worker stays flat
+        on RSS through the fan-out.
+        """
+        stmt = (
+            select(OrmProduct.id)
+            .where(predicate, OrmProduct.deleted_at.is_(None))
+            .execution_options(yield_per=500)
+        )
+        result = await self._session.stream(stmt)
+        async for row in result:
+            yield row[0]
+
     # ------------------------------------------------------------------
     # Stage 1 — basics (product + brand + supplier + primary_category)
     # ------------------------------------------------------------------
