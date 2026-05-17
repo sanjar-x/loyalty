@@ -8,7 +8,9 @@ providers are consumed by the FastAPI router layer via ``FromDishka``.
 
 from dishka import Provider, Scope, provide
 from dishka.dependency_source.composite import CompositeDependencySource
+from elasticsearch import AsyncElasticsearch
 
+from src.bootstrap.config import Settings
 from src.modules.catalog.application.commands.add_attribute_value import (
     AddAttributeValueHandler,
 )
@@ -132,6 +134,7 @@ from src.modules.catalog.application.commands.update_template_attribute_binding 
     UpdateTemplateAttributeBindingHandler,
 )
 from src.modules.catalog.application.commands.update_variant import UpdateVariantHandler
+from src.modules.catalog.application.ports import IProductSearchService
 from src.modules.catalog.application.queries.breadcrumbs import BreadcrumbsBuilder
 from src.modules.catalog.application.queries.compute_facets import (
     ComputeFacetsHandler,
@@ -240,6 +243,9 @@ from src.modules.catalog.domain.interfaces import (
     IProductAttributeValueRepository,
     IProductRepository,
     ITemplateAttributeBindingRepository,
+)
+from src.modules.catalog.infrastructure.adapters.elasticsearch_search_service import (
+    ElasticsearchProductSearchService,
 )
 from src.modules.catalog.infrastructure.adapters.media_cleanup_adapter import (
     MediaCleanupAdapter,
@@ -515,6 +521,22 @@ class StorefrontCatalogProvider(Provider):
     search_suggest_handler: CompositeDependencySource = provide(
         SearchSuggestHandler, scope=Scope.REQUEST
     )
+
+    # Phase 2 SPEC — ``IProductSearchService`` port bound to the ES adapter.
+    # Currently inert on the request path: existing
+    # ``SearchProductsHandler`` / ``SearchSuggestHandler`` keep their
+    # direct ORM access until Phase 2.5 refactor swaps them onto the
+    # port. Bound now so integration tests and the upcoming
+    # ``ProductIndexer`` consumer can resolve it from DI without
+    # touching this provider again.
+    @provide(scope=Scope.REQUEST)
+    def product_search_service(
+        self, es: AsyncElasticsearch, settings: Settings
+    ) -> IProductSearchService:
+        return ElasticsearchProductSearchService(
+            es=es,
+            index_alias=settings.ELASTICSEARCH_INDEX_ALIAS,
+        )
 
 
 class ProductProvider(Provider):

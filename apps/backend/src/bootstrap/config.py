@@ -302,6 +302,15 @@ class Settings(BaseSettings):
     # without surfacing failures to callers).
     ELASTICSEARCH_REQUEST_TIMEOUT_SECONDS: float = Field(default=30.0, gt=0)
     ELASTICSEARCH_MAX_RETRIES: int = Field(default=3, ge=0)
+    # Feature flag — selects the IProductSearchService implementation at
+    # DI assembly time. ``postgres`` keeps the existing tsvector-based
+    # SearchProductsHandler / SearchSuggestHandler in the request path
+    # (no behavioural change). ``elasticsearch`` switches the storefront
+    # search endpoints to the new ES-backed adapter once Phase 2/3 of
+    # SPEC - Elasticsearch Product Search ships. Flippable via Railway
+    # env-var without redeploy; PG path stays in the codebase as
+    # fallback for at least one sprint after cutover.
+    SEARCH_PROVIDER: Literal["postgres", "elasticsearch"] = "postgres"
 
     @computed_field
     @property
