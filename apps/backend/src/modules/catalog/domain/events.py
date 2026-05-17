@@ -507,6 +507,33 @@ class MediaAssetDetachedEvent(
     event_type: str = "MediaAssetDetachedEvent"
 
 
+@dataclass(frozen=True)
+class MediaAssetUpdatedEvent(
+    CatalogEvent,
+    required_fields=("product_id", "media_asset_id"),
+    aggregate_id_field="product_id",
+):
+    """Emitted when an existing media asset's metadata changes.
+
+    Covers PATCH-style mutations on ``media_assets`` rows that don't
+    create or delete the row itself: role, variant binding, and
+    sort_order. Carries enough state for downstream subscribers
+    (search reindex, audit log, PDP cache invalidation) to react
+    without re-reading the row. ``previous_role`` / ``previous_variant_id``
+    let auditors reconstruct the change without joining against history.
+    """
+
+    product_id: uuid.UUID | None = None
+    media_asset_id: uuid.UUID | None = None
+    variant_id: uuid.UUID | None = None
+    previous_variant_id: uuid.UUID | None = None
+    role: str = ""
+    previous_role: str = ""
+    sort_order: int | None = None
+    aggregate_type: str = "Product"
+    event_type: str = "MediaAssetUpdatedEvent"
+
+
 # ---------------------------------------------------------------------------
 # ProductVariant events
 # ---------------------------------------------------------------------------

@@ -30,7 +30,10 @@ from src.modules.catalog.application.commands.update_product_media import (
     UpdateProductMediaHandler,
 )
 from src.modules.catalog.domain.entities import MediaAsset
-from src.modules.catalog.domain.events import MediaAssetDetachedEvent
+from src.modules.catalog.domain.events import (
+    MediaAssetDetachedEvent,
+    MediaAssetUpdatedEvent,
+)
 from src.modules.catalog.domain.exceptions import (
     DuplicateMainMediaError,
     MediaAssetNotFoundError,
@@ -394,6 +397,105 @@ class TestUpdateProductMedia:
                 )
             )
         assert uow.committed is False
+
+    async def test_main_role_conflict_when_only_variant_changes(self):
+        """PATCH ``{variantId}`` (no ``role``) of a MAIN media must still
+        raise ``DuplicateMainMediaError`` if the target variant already
+        has a MAIN. Pre-fix the role-guard only looked at
+        ``_provided_fields`` and skipped the check entirely for this
+        case, letting the DB partial-unique index surface a 500.
+        """
+        uow = FakeUnitOfWork()
+        product = _seed_product(uow)
+        variant_id = product.variants[0].id
+
+        # Existing MAIN on the target variant.
+        _seed_media(uow, product_id=product.id, variant_id=variant_id, role="main")
+        # Another MAIN currently bound to no variant; PATCH it onto the
+        # target variant *without* touching ``role`` — uniqueness must
+        # still be enforced at the app layer.
+        media = _seed_media(uow, product_id=product.id, variant_id=None, role="main")
+
+        handler = UpdateProductMediaHandler(
+            product_repo=uow.products,
+            media_repo=uow.media_assets,
+            uow=uow,
+            cache=AsyncMock(),
+            logger=_make_logger(),
+        )
+        with pytest.raises(DuplicateMainMediaError):
+            await handler.handle(
+                UpdateProductMediaCommand(
+                    product_id=product.id,
+                    media_id=media.id,
+                    variant_id=variant_id,
+                    _provided_fields=frozenset({"variant_id"}),
+                )
+            )
+        assert uow.committed is False
+
+    async def test_emits_updated_event_on_change(self):
+        """Any mutation that actually changes the row must emit
+        ``MediaAssetUpdatedEvent`` on the product aggregate so the outbox
+        carries the diff to downstream subscribers."""
+        uow = FakeUnitOfWork()
+        product = _seed_product(uow)
+        media = _seed_media(uow, product_id=product.id, variant_id=None, role="gallery")
+
+        handler = UpdateProductMediaHandler(
+            product_repo=uow.products,
+            media_repo=uow.media_assets,
+            uow=uow,
+            cache=AsyncMock(),
+            logger=_make_logger(),
+        )
+        await handler.handle(
+            UpdateProductMediaCommand(
+                product_id=product.id,
+                media_id=media.id,
+                sort_order=42,
+                _provided_fields=frozenset({"sort_order"}),
+            )
+        )
+
+        updated = [
+            e for e in uow.collected_events if isinstance(e, MediaAssetUpdatedEvent)
+        ]
+        assert len(updated) == 1
+        assert updated[0].media_asset_id == media.id
+        assert updated[0].sort_order == 42
+        assert updated[0].role == "gallery"
+        assert updated[0].previous_role == "gallery"
+
+    async def test_no_op_resubmit_emits_no_event(self):
+        """PATCH with the same values must be idempotent: no event,
+        no register_aggregate (commit can still run cleanly)."""
+        uow = FakeUnitOfWork()
+        product = _seed_product(uow)
+        media = _seed_media(
+            uow, product_id=product.id, variant_id=None, role="gallery", sort_order=7
+        )
+
+        handler = UpdateProductMediaHandler(
+            product_repo=uow.products,
+            media_repo=uow.media_assets,
+            uow=uow,
+            cache=AsyncMock(),
+            logger=_make_logger(),
+        )
+        await handler.handle(
+            UpdateProductMediaCommand(
+                product_id=product.id,
+                media_id=media.id,
+                sort_order=7,
+                _provided_fields=frozenset({"sort_order"}),
+            )
+        )
+
+        updated = [
+            e for e in uow.collected_events if isinstance(e, MediaAssetUpdatedEvent)
+        ]
+        assert updated == []
 
 
 # ============================================================================
