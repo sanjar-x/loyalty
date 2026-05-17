@@ -13,6 +13,7 @@ from src.modules.catalog.domain.interfaces import (
     IMediaAssetRepository,
     IProductRepository,
 )
+from src.shared.cache_keys import bump_storefront_product_generation
 from src.shared.exceptions import ValidationError
 from src.shared.interfaces.cache import ICacheService
 from src.shared.interfaces.logger import ILogger
@@ -120,5 +121,11 @@ class ReorderProductMediaHandler:
             loaded = await self._product_repo.get(command.product_id)
             if loaded is not None:
                 await self._cache.delete(storefront_pdp_cache_key(loaded.slug))
+            # Reorder can promote a different gallery item into the
+            # ``sort_order=0`` slot, which the PLP card shows when no
+            # MAIN exists. Computing the exact delta is more brittle
+            # than the cheap counter bump (single INCR), so always
+            # invalidate PLP/search after a successful reorder.
+            await bump_storefront_product_generation(self._cache)
         except Exception as exc:  # pragma: no cover
             self._logger.warning("pdp_cache_invalidation_failed", error=str(exc))

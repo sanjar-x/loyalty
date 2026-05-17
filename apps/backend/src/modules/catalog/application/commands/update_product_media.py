@@ -25,6 +25,7 @@ from src.modules.catalog.domain.interfaces import (
     IProductRepository,
 )
 from src.modules.catalog.domain.value_objects import MediaRole
+from src.shared.cache_keys import bump_storefront_product_generation
 from src.shared.interfaces.cache import ICacheService
 from src.shared.interfaces.logger import ILogger
 from src.shared.interfaces.uow import IUnitOfWork
@@ -189,6 +190,16 @@ class UpdateProductMediaHandler:
 
         try:
             await self._cache.delete(storefront_pdp_cache_key(product.slug))
+            # Bump PLP generation only when the MAIN-role thumbnail is
+            # involved on either side of the diff: a row gaining MAIN
+            # becomes the new PLP card image, a row losing MAIN frees
+            # the slot. Plain gallery shuffles only affect the PDP,
+            # which the ``cache.delete`` above already invalidates.
+            main_touched = (
+                previous_role == MediaRole.MAIN or media.role == MediaRole.MAIN
+            )
+            if changed and main_touched:
+                await bump_storefront_product_generation(self._cache)
         except Exception as exc:  # pragma: no cover
             self._logger.warning("pdp_cache_invalidation_failed", error=str(exc))
 

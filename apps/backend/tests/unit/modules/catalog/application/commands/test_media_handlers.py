@@ -523,6 +523,7 @@ class TestDeleteProductMedia:
             product_repo=uow.products,
             media_repo=uow.media_assets,
             uow=uow,
+            cache=AsyncMock(),
             logger=_make_logger(),
         )
         await handler.handle(
@@ -550,6 +551,7 @@ class TestDeleteProductMedia:
             product_repo=uow.products,
             media_repo=uow.media_assets,
             uow=uow,
+            cache=AsyncMock(),
             logger=_make_logger(),
         )
         await handler.handle(
@@ -572,6 +574,7 @@ class TestDeleteProductMedia:
             product_repo=uow.products,
             media_repo=uow.media_assets,
             uow=uow,
+            cache=AsyncMock(),
             logger=_make_logger(),
         )
         with pytest.raises(MediaAssetNotFoundError):
@@ -592,6 +595,7 @@ class TestDeleteProductMedia:
             product_repo=uow.products,
             media_repo=uow.media_assets,
             uow=uow,
+            cache=AsyncMock(),
             logger=_make_logger(),
         )
         with pytest.raises(MediaAssetNotFoundError):
@@ -635,6 +639,7 @@ class TestDeleteProductMedia:
             product_repo=uow.products,
             media_repo=uow.media_assets,
             uow=uow,
+            cache=AsyncMock(),
             logger=_make_logger(),
         )
         await handler.handle(

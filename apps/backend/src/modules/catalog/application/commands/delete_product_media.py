@@ -17,6 +17,7 @@ mirrors the cascade pattern used by ``DeleteProductHandler``.
 import uuid
 from dataclasses import dataclass
 
+from src.modules.catalog.application.constants import storefront_pdp_cache_key
 from src.modules.catalog.domain.events import MediaAssetDetachedEvent
 from src.modules.catalog.domain.exceptions import (
     MediaAssetNotFoundError,
@@ -26,6 +27,9 @@ from src.modules.catalog.domain.interfaces import (
     IMediaAssetRepository,
     IProductRepository,
 )
+from src.modules.catalog.domain.value_objects import MediaRole
+from src.shared.cache_keys import bump_storefront_product_generation
+from src.shared.interfaces.cache import ICacheService
 from src.shared.interfaces.logger import ILogger
 from src.shared.interfaces.uow import IUnitOfWork
 
@@ -51,11 +55,13 @@ class DeleteProductMediaHandler:
         product_repo: IProductRepository,
         media_repo: IMediaAssetRepository,
         uow: IUnitOfWork,
+        cache: ICacheService,
         logger: ILogger,
     ) -> None:
         self._product_repo = product_repo
         self._media_repo = media_repo
         self._uow = uow
+        self._cache = cache
         self._logger = logger.bind(handler="DeleteProductMediaHandler")
 
     async def handle(self, command: DeleteProductMediaCommand) -> None:
@@ -88,6 +94,7 @@ class DeleteProductMediaHandler:
                 raise ProductNotFoundError(product_id=command.product_id)
 
             storage_object_id = media.storage_object_id
+            was_main = media.role == MediaRole.MAIN
             await self._media_repo.delete(command.media_id)
 
             if storage_object_id is not None:
@@ -102,6 +109,16 @@ class DeleteProductMediaHandler:
 
             self._uow.register_aggregate(product)
             await self._uow.commit()
+
+        try:
+            await self._cache.delete(storefront_pdp_cache_key(product.slug))
+            # MAIN-asset removal changes the PLP card thumbnail — bump
+            # the storefront generation counter so listings refresh
+            # instead of waiting for the 60s TTL.
+            if was_main:
+                await bump_storefront_product_generation(self._cache)
+        except Exception as exc:  # pragma: no cover
+            self._logger.warning("pdp_cache_invalidation_failed", error=str(exc))
 
         self._logger.info(
             "Media asset deleted",

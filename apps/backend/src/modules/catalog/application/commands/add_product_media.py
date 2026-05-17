@@ -21,6 +21,7 @@ from src.modules.catalog.domain.interfaces import (
     IProductRepository,
 )
 from src.modules.catalog.domain.value_objects import MediaRole
+from src.shared.cache_keys import bump_storefront_product_generation
 from src.shared.interfaces.cache import ICacheService
 from src.shared.interfaces.logger import ILogger
 from src.shared.interfaces.uow import IUnitOfWork
@@ -131,6 +132,12 @@ class AddProductMediaHandler:
 
         try:
             await self._cache.delete(storefront_pdp_cache_key(product.slug))
+            # MAIN-role media renders as the PLP card thumbnail; bump the
+            # storefront generation counter so PLP/search caches refresh
+            # instead of waiting for the 60s TTL. Non-MAIN gallery items
+            # only appear on the PDP, which the line above already covers.
+            if command.role == MediaRole.MAIN.value:
+                await bump_storefront_product_generation(self._cache)
         except Exception as exc:  # pragma: no cover
             self._logger.warning("pdp_cache_invalidation_failed", error=str(exc))
 
