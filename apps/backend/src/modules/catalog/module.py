@@ -99,5 +99,13 @@ CATALOG_MODULE = ModuleManifest(
         "src.modules.catalog.application.consumers.sku_pricing_events",
         "src.modules.catalog.application.consumers.storage_object_processed",
         "src.modules.catalog.application.consumers.media_asset_detached",
+        # SPEC - Elasticsearch Product Search §5 — outbox-driven
+        # reindex of products. Imports the module at bootstrap so the
+        # 14 ``register_event_handler(...)`` calls + 3 ``@broker.task``
+        # decorators at the bottom of ``product_indexer.py`` actually
+        # fire. WITHOUT this entry the entire Phase 2.6/2.7 pipeline
+        # is dead code — guarded by
+        # ``test_product_indexer_event_handlers_registered``.
+        "src.modules.catalog.application.consumers.product_indexer",
     ),
 )
