@@ -42,6 +42,7 @@ from src.infrastructure.elasticsearch import bulk_index, translate
 from src.infrastructure.idempotency import run_inbox_idempotent
 from src.infrastructure.outbox.relay import register_event_handler
 from src.modules.catalog.application.ports import IProductHydrationReader
+from src.shared.exceptions import SearchBackendError
 from src.shared.interfaces.idempotency import IInboxStore
 
 logger = structlog.get_logger(__name__)
@@ -98,6 +99,25 @@ class ProductIndexer:
             es_success=result.success_count,
             es_errors=result.error_count,
         )
+        # B2 (Deep Review fix): a per-item bulk failure (mapping error,
+        # version conflict, doc-too-large) used to be logged-and-forgotten
+        # because ``bulk_index(raise_on_error=False)`` returns a normal
+        # BulkResult. Without raising, the inbox row commits as
+        # "processed" and TaskIQ never retries — the product stays stale
+        # in ES forever. Raise so the configured ``max_retries=5`` on
+        # ``index_product_task`` actually kicks in and the inbox row
+        # rolls back via ``run_inbox_idempotent``'s commit-after-body
+        # contract.
+        if result.has_errors:
+            raise SearchBackendError(
+                message="ProductIndexer bulk write reported per-item failures",
+                details={
+                    "product_id": str(product_id),
+                    "index": self._index,
+                    "es_errors": result.error_count,
+                    "first_error": result.errors[0] if result.errors else None,
+                },
+            )
 
     async def _remove(self, product_id: uuid.UUID) -> None:
         try:

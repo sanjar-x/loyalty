@@ -42,6 +42,7 @@ from src.modules.catalog.application.queries.read_models import (
     StorefrontProductCardReadModel,
     StorefrontSupplierReadModel,
 )
+from src.shared.exceptions import ValidationError
 from src.shared.pagination import CursorPage, decode_cursor, encode_cursor
 
 logger = structlog.get_logger(__name__)
@@ -70,7 +71,25 @@ class ElasticsearchProductSearchService(IProductSearchService):
     async def search(
         self, criteria: SearchProductsCriteria
     ) -> CursorPage[StorefrontProductCardReadModel]:
-        body = self._build_search_body(criteria)
+        # H3 (Deep Review fix): decode the cursor BEFORE the ES try-block.
+        # A malformed cursor (client tampering, base64 corruption) used to
+        # raise ``ValueError`` inside the try → got wrapped by ``translate``
+        # as ``SearchBackendError`` (503), so the customer saw "search
+        # temporarily unavailable" instead of "invalid cursor". Now we
+        # surface it as ``ValidationError`` (400).
+        cursor_after: list[Any] | None = None
+        if criteria.cursor:
+            try:
+                sort_val, row_id = decode_cursor(criteria.cursor)
+            except ValueError as exc:
+                raise ValidationError(
+                    message="Invalid search cursor",
+                    error_code="SEARCH_CURSOR_INVALID",
+                    details={"cursor": criteria.cursor[:64]},
+                ) from exc
+            cursor_after = [sort_val, str(row_id)]
+
+        body = self._build_search_body(criteria, search_after=cursor_after)
         try:
             resp = await self._es.search(
                 index=self._index, body=body, size=criteria.limit + 1
@@ -85,6 +104,12 @@ class ElasticsearchProductSearchService(IProductSearchService):
 
         next_cursor: str | None = None
         if has_next and items:
+            # B4 (Deep Review fix): read the cursor value from ``hit["sort"]``
+            # — the canonical search_after contract — instead of guessing
+            # from ``_source``. With ``missing: "_last"`` the two diverge
+            # (ES substitutes a sentinel during sorting that NEVER appears
+            # in _source), so the old code would build a cursor that ES
+            # then rejected on page 2 with ``search_phase_execution_exception``.
             sort_val = self._extract_sort_value(page_hits[-1], criteria.sort)
             next_cursor = encode_cursor(sort_val, items[-1].id)
 
@@ -148,7 +173,12 @@ class ElasticsearchProductSearchService(IProductSearchService):
     # Body builders
     # ------------------------------------------------------------------
 
-    def _build_search_body(self, criteria: SearchProductsCriteria) -> dict[str, Any]:
+    def _build_search_body(
+        self,
+        criteria: SearchProductsCriteria,
+        *,
+        search_after: list[Any] | None = None,
+    ) -> dict[str, Any]:
         must: list[dict[str, Any]] = []
         q = criteria.q.strip()
         if q:
@@ -222,9 +252,8 @@ class ElasticsearchProductSearchService(IProductSearchService):
             "track_total_hits": bool(criteria.include_total),
         }
 
-        if criteria.cursor:
-            cursor_sort, cursor_id = decode_cursor(criteria.cursor)
-            body["search_after"] = [cursor_sort, str(cursor_id)]
+        if search_after is not None:
+            body["search_after"] = search_after
 
         return body
 
@@ -261,6 +290,25 @@ class ElasticsearchProductSearchService(IProductSearchService):
 
     @staticmethod
     def _extract_sort_value(hit: dict[str, Any], sort: str) -> Any:
+        """Primary sort field value as ES sees it, not as ``_source`` carries it.
+
+        Critical for ``search_after`` cursor pagination — ES applies
+        ``missing: "_last"`` substitution at sort time (NULL becomes a
+        type-specific sentinel like ``Long.MAX_VALUE``). That sentinel
+        is in ``hit["sort"]`` but NOT in ``_source`` (which still has
+        the underlying ``None``). Passing ``None`` to ``search_after``
+        on the next page makes ES refuse the cursor.
+        """
+        sort_arr = hit.get("sort")
+        if isinstance(sort_arr, list) and sort_arr:
+            # First element is the primary sort key (the second is the
+            # product_id tiebreaker, which we encode separately).
+            return sort_arr[0]
+
+        # Fallback path — ES should always return ``sort`` for queries
+        # that requested one, but keep the legacy ``_source`` derivation
+        # so the function still produces *something* if a future query
+        # variant drops the sort clause.
         src = cast(dict[str, Any], hit.get("_source", {}))
         if sort == "newest":
             return src.get("published_at")
