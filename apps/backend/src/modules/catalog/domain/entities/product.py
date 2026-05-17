@@ -305,6 +305,7 @@ class Product(AggregateRoot):
             "brand_id",
             "primary_category_id",
             "supplier_id",
+            "source_url",
             "country_of_origin",
             "tags",
         }
@@ -365,6 +366,14 @@ class Product(AggregateRoot):
 
         if "supplier_id" in kwargs:
             self.supplier_id = kwargs["supplier_id"]  # can be None
+            changed = True
+
+        if "source_url" in kwargs:
+            # ``None`` is a legitimate "clear" — the cross-border /
+            # source_url invariant is re-checked at the application
+            # layer (UpdateProductHandler) so it can read the active
+            # supplier's ``type_code`` via ``ISupplierDirectory``.
+            self.source_url = kwargs["source_url"]
             changed = True
 
         if "country_of_origin" in kwargs:

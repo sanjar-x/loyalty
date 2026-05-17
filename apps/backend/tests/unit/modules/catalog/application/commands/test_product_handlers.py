@@ -758,6 +758,91 @@ class TestUpdateProduct:
 
         assert uow.committed is False
 
+    async def test_update_source_url_persisted(self):
+        """PR L — source_url is now editable on the update path.
+
+        Pre-fix the field existed on the entity and the create command
+        but was missing from ``ProductUpdateRequest``/
+        ``UpdateProductCommand``, so an admin could never fill in or
+        replace the URL after creation (and could not satisfy the
+        cross-border invariant on existing rows).
+        """
+        uow = FakeUnitOfWork()
+        brand = _seed_brand(uow)
+        cat = _seed_category(uow)
+        product = _seed_product(uow, brand_id=brand.id, category_id=cat.id)
+        svc = _make_supplier_service()
+
+        handler = UpdateProductHandler(
+            product_repo=uow.products,
+            brand_repo=uow.brands,
+            category_repo=uow.categories,
+            supplier_directory=svc,
+            uow=uow,
+            cache=AsyncMock(),
+            logger=_make_logger(),
+        )
+
+        await handler.handle(
+            UpdateProductCommand(
+                product_id=product.id,
+                source_url="https://poizon.com/products/123",
+                _provided_fields=frozenset({"source_url"}),
+            )
+        )
+
+        assert uow.committed is True
+        assert (
+            uow.products._store[product.id].source_url
+            == "https://poizon.com/products/123"
+        )
+
+    async def test_update_clearing_source_url_on_cross_border_blocked(self):
+        """PR L — clearing source_url on a cross-border product must fail.
+
+        The cross-border invariant is enforced symmetrically with the
+        create path: if the *effective* source_url after the patch is
+        empty AND the active supplier is cross-border, the change is
+        rejected before commit.
+        """
+        uow = FakeUnitOfWork()
+        brand = _seed_brand(uow)
+        cat = _seed_category(uow)
+        supplier_id = uuid.uuid4()
+        product = _seed_product(uow, brand_id=brand.id, category_id=cat.id)
+        # Stamp the row to look like an existing cross-border product
+        # with a real source URL we are about to (accidentally) clear.
+        product.supplier_id = supplier_id
+        product.source_url = "https://poizon.com/products/123"
+        info = SupplierSnapshot(
+            id=supplier_id,
+            name="Poizon",
+            type_code="cross_border",
+            is_active=True,
+        )
+        svc = _make_supplier_service(supplier_info=info)
+
+        handler = UpdateProductHandler(
+            product_repo=uow.products,
+            brand_repo=uow.brands,
+            category_repo=uow.categories,
+            supplier_directory=svc,
+            uow=uow,
+            cache=AsyncMock(),
+            logger=_make_logger(),
+        )
+
+        with pytest.raises(SourceUrlRequiredError):
+            await handler.handle(
+                UpdateProductCommand(
+                    product_id=product.id,
+                    source_url=None,
+                    _provided_fields=frozenset({"source_url"}),
+                )
+            )
+
+        assert uow.committed is False
+
     async def test_update_supplier_clear_skips_directory_call(self):
         """``supplier_id=None`` means "clear the link". The directory
         port is not consulted (no row to assert against). FK is

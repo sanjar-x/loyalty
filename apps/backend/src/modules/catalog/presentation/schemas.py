@@ -730,6 +730,7 @@ class ProductUpdateRequest(CamelModel):
     brand_id: uuid.UUID | None = None
     primary_category_id: uuid.UUID | None = None
     supplier_id: uuid.UUID | None = None
+    source_url: str | None = Field(None, max_length=1024, pattern=r"^https?://")
     country_of_origin: str | None = Field(
         None, min_length=2, max_length=2, pattern=r"^[A-Z]{2}$"
     )

@@ -74,6 +74,7 @@ class UpdateProductCommand:
     brand_id: uuid.UUID | None = None
     primary_category_id: uuid.UUID | None = None
     supplier_id: uuid.UUID | None = None
+    source_url: str | None = None
     country_of_origin: str | None = None
     tags: list[str] | None = None
     version: int | None = None
@@ -188,24 +189,45 @@ class UpdateProductHandler:
                 if category is None:
                     raise CategoryNotFoundError(category_id=command.primary_category_id)
 
-            # --- Supplier validation (when supplier_id is being set/changed) ---
-            # ``supplier_id`` is FK-nullable, so ``None`` is a valid value
-            # meaning "clear the link" — only validate when a non-null UUID
-            # is provided. Mirrors the ``CreateProductHandler`` rule so an
-            # active cross-border supplier cannot be attached to a product
-            # without a ``source_url`` (re-checks the invariant against the
-            # row's *current* ``source_url`` since update has no field for it).
-            if (
+            # --- Supplier + source_url cross-border invariant ---
+            # The cross-border rule is "if the supplier (after the patch)
+            # is type_code=cross_border, source_url (after the patch) must
+            # be non-empty". The check needs the *effective* values, not
+            # the row's current state, because the same PATCH can flip
+            # supplier and source_url together.
+            effective_source_url = (
+                command.source_url
+                if "source_url" in command._provided_fields
+                else product.source_url
+            )
+            supplier_changing = (
                 "supplier_id" in command._provided_fields
                 and command.supplier_id is not None
-            ):
+            )
+            source_url_clearing = (
+                "source_url" in command._provided_fields and not command.source_url
+            )
+
+            # Supplier directory call only happens when we have a new
+            # supplier_id to validate (`assert_active` also raises for
+            # inactive / not-found suppliers — 422 envelope).
+            if supplier_changing:
                 supplier_snapshot = await self._supplier_directory.assert_active(
                     command.supplier_id
                 )
                 if (
                     supplier_snapshot.type_code == _SUPPLIER_TYPE_CROSS_BORDER
-                    and not product.source_url
+                    and not effective_source_url
                 ):
+                    raise SourceUrlRequiredError()
+            elif source_url_clearing and product.supplier_id is not None:
+                # Clearing source_url without touching supplier: re-check
+                # against the row's existing supplier so a cross-border
+                # product can't be left URL-less.
+                supplier_snapshot = await self._supplier_directory.assert_active(
+                    product.supplier_id
+                )
+                if supplier_snapshot.type_code == _SUPPLIER_TYPE_CROSS_BORDER:
                     raise SourceUrlRequiredError()
 
             # --- Slug uniqueness check (only when slug is actually changing) ---
