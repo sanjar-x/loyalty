@@ -327,6 +327,7 @@ class TestUpdateSKU:
         result = await handler.handle(
             UpdateSKUCommand(
                 product_id=product.id,
+                variant_id=sku.variant_id,
                 sku_id=sku.id,
                 sku_code="NEW-CODE",
             )
@@ -355,6 +356,7 @@ class TestUpdateSKU:
         await handler.handle(
             UpdateSKUCommand(
                 product_id=product.id,
+                variant_id=sku.variant_id,
                 sku_id=sku.id,
                 price=Money(amount=2000, currency="RUB"),
                 _provided_fields=frozenset({"price"}),
@@ -374,6 +376,7 @@ class TestUpdateSKU:
             await handler.handle(
                 UpdateSKUCommand(
                     product_id=uuid.uuid4(),
+                    variant_id=uuid.uuid4(),
                     sku_id=uuid.uuid4(),
                 )
             )
@@ -390,6 +393,7 @@ class TestUpdateSKU:
             await handler.handle(
                 UpdateSKUCommand(
                     product_id=product.id,
+                    variant_id=uuid.uuid4(),
                     sku_id=uuid.uuid4(),
                 )
             )
@@ -414,6 +418,7 @@ class TestUpdateSKU:
             await handler.handle(
                 UpdateSKUCommand(
                     product_id=product.id,
+                    variant_id=sku.variant_id,
                     sku_id=sku.id,
                     sku_code="CONFLICT",
                     version=999,
@@ -448,6 +453,7 @@ class TestUpdateSKU:
             await handler.handle(
                 UpdateSKUCommand(
                     product_id=p2.id,
+                    variant_id=sku2.variant_id,
                     sku_id=sku2.id,
                     sku_code="TAKEN",
                 )
@@ -481,6 +487,7 @@ class TestDeleteSKU:
         await handler.handle(
             DeleteSKUCommand(
                 product_id=product.id,
+                variant_id=sku.variant_id,
                 sku_id=sku.id,
             )
         )
@@ -498,6 +505,7 @@ class TestDeleteSKU:
             await handler.handle(
                 DeleteSKUCommand(
                     product_id=uuid.uuid4(),
+                    variant_id=uuid.uuid4(),
                     sku_id=uuid.uuid4(),
                 )
             )
@@ -514,6 +522,7 @@ class TestDeleteSKU:
             await handler.handle(
                 DeleteSKUCommand(
                     product_id=product.id,
+                    variant_id=uuid.uuid4(),
                     sku_id=uuid.uuid4(),
                 )
             )
@@ -537,6 +546,7 @@ class TestDeleteSKU:
         await handler.handle(
             DeleteSKUCommand(
                 product_id=product.id,
+                variant_id=sku.variant_id,
                 sku_id=sku.id,
             )
         )

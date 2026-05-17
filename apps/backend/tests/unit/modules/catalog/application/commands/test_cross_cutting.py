@@ -223,7 +223,11 @@ class TestEventAuditGaps:
         handler = DeleteSKUHandler(
             cache=AsyncMock(), product_repo=uow.products, uow=uow, logger=_make_logger()
         )
-        await handler.handle(DeleteSKUCommand(product_id=product.id, sku_id=sku.id))
+        await handler.handle(
+            DeleteSKUCommand(
+                product_id=product.id, variant_id=sku.variant_id, sku_id=sku.id
+            )
+        )
 
         del_events = [e for e in uow.collected_events if isinstance(e, SKUDeletedEvent)]
         assert len(del_events) == 1
@@ -575,6 +579,7 @@ class TestFKUniquenessErrors:
             await handler.handle(
                 UpdateSKUCommand(
                     product_id=product.id,
+                    variant_id=sku2.variant_id,
                     sku_id=sku2.id,
                     variant_attributes=[(attr_id, val_a)],
                 )

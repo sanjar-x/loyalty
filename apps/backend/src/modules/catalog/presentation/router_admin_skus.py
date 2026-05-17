@@ -212,6 +212,7 @@ async def update_sku(
             "purchase_price": _money_from_schema,
         },
         product_id=product_id,
+        variant_id=variant_id,
         sku_id=sku_id,
         version=request.version,
         expected_version=if_match_version,
@@ -260,9 +261,14 @@ async def delete_sku(
 ) -> None:
     """Soft-delete a SKU from the product variant.
 
-    The handler fetches the product aggregate and calls
-    ``Product.remove_sku()``, which raises ``SKUNotFoundError`` if the
-    SKU does not belong to the product -- no separate IDOR pre-check needed.
+    The handler enforces both that the SKU belongs to ``productId``
+    *and* that it sits inside ``variantId`` (404 ``SKU_NOT_FOUND``
+    otherwise) so a cross-variant URL cannot silently delete a sibling
+    variant's SKU.
     """
-    command = DeleteSKUCommand(product_id=product_id, sku_id=sku_id)
+    command = DeleteSKUCommand(
+        product_id=product_id,
+        variant_id=variant_id,
+        sku_id=sku_id,
+    )
     await handler.handle(command)

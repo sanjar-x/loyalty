@@ -51,6 +51,7 @@ _EXEMPT_COMMAND_FIELDS: dict[str, frozenset[str]] = {
     "UpdateSKUCommand": frozenset(
         {
             "product_id",  # path param
+            "variant_id",  # path param (enforces no cross-variant routing)
             "sku_id",  # path param
             "expected_version",  # If-Match header
             "_provided_fields",  # router-stitched

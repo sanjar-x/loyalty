@@ -59,6 +59,7 @@ class UpdateSKUCommand:
     """
 
     product_id: uuid.UUID
+    variant_id: uuid.UUID
     sku_id: uuid.UUID
     sku_code: str | None = None
     price: Money | None = None
@@ -140,8 +141,13 @@ class UpdateSKUHandler:
             if product is None:
                 raise ProductNotFoundError(product_id=command.product_id)
 
+            # ``find_sku`` walks every variant, so the URL's ``variantId``
+            # would otherwise be cosmetic — a PATCH against variant X
+            # could mutate a SKU owned by variant Y and return a body
+            # with the "wrong" ``variant_id``. Reject cross-variant
+            # routing with a clean 404 before any further work.
             sku = product.find_sku(command.sku_id)
-            if sku is None:
+            if sku is None or sku.variant_id != command.variant_id:
                 raise SKUNotFoundError(sku_id=command.sku_id)
 
             # T-1.4 — header-level optimistic locking via If-Match.
