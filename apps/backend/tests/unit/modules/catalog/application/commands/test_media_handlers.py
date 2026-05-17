@@ -30,6 +30,7 @@ from src.modules.catalog.application.commands.update_product_media import (
     UpdateProductMediaHandler,
 )
 from src.modules.catalog.domain.entities import MediaAsset
+from src.modules.catalog.domain.events import MediaAssetDetachedEvent
 from src.modules.catalog.domain.exceptions import (
     DuplicateMainMediaError,
     MediaAssetNotFoundError,
@@ -401,19 +402,25 @@ class TestUpdateProductMedia:
 
 
 class TestDeleteProductMedia:
-    """Tests for DeleteProductMediaHandler."""
+    """Tests for DeleteProductMediaHandler.
 
-    async def test_happy_path_deletes_and_cleans_up(self):
+    IMG-005 contract: every successful delete must emit
+    ``MediaAssetDetachedEvent`` on the product aggregate so the outbox
+    consumer drives S3 + ``storage_objects`` cleanup. The pre-IMG-005
+    behaviour (in-process ``IMediaCleanupPort.delete`` after commit)
+    is no longer acceptable.
+    """
+
+    async def test_happy_path_emits_detached_event(self):
         uow = FakeUnitOfWork()
         product = _seed_product(uow)
         storage_id = uuid.uuid4()
         media = _seed_media(uow, product_id=product.id, storage_object_id=storage_id)
-        media_cleanup = _make_media_cleanup()
 
         handler = DeleteProductMediaHandler(
+            product_repo=uow.products,
             media_repo=uow.media_assets,
             uow=uow,
-            media_cleanup=media_cleanup,
             logger=_make_logger(),
         )
         await handler.handle(
@@ -425,18 +432,22 @@ class TestDeleteProductMedia:
 
         assert media.id not in uow.media_assets._store
         assert uow.committed is True
-        media_cleanup.delete.assert_called_once_with(storage_id)
+        detached = [
+            e for e in uow.collected_events if isinstance(e, MediaAssetDetachedEvent)
+        ]
+        assert len(detached) == 1
+        assert detached[0].product_id == product.id
+        assert detached[0].storage_object_id == storage_id
 
-    async def test_no_cleanup_when_no_storage_object(self):
+    async def test_no_event_when_no_storage_object(self):
         uow = FakeUnitOfWork()
         product = _seed_product(uow)
         media = _seed_media(uow, product_id=product.id, storage_object_id=None)
-        media_cleanup = _make_media_cleanup()
 
         handler = DeleteProductMediaHandler(
+            product_repo=uow.products,
             media_repo=uow.media_assets,
             uow=uow,
-            media_cleanup=media_cleanup,
             logger=_make_logger(),
         )
         await handler.handle(
@@ -447,16 +458,18 @@ class TestDeleteProductMedia:
         )
 
         assert uow.committed is True
-        media_cleanup.delete.assert_not_called()
+        detached = [
+            e for e in uow.collected_events if isinstance(e, MediaAssetDetachedEvent)
+        ]
+        assert detached == []
 
     async def test_media_not_found(self):
         uow = FakeUnitOfWork()
-        media_cleanup = _make_media_cleanup()
 
         handler = DeleteProductMediaHandler(
+            product_repo=uow.products,
             media_repo=uow.media_assets,
             uow=uow,
-            media_cleanup=media_cleanup,
             logger=_make_logger(),
         )
         with pytest.raises(MediaAssetNotFoundError):
@@ -472,12 +485,11 @@ class TestDeleteProductMedia:
         uow = FakeUnitOfWork()
         product = _seed_product(uow)
         media = _seed_media(uow, product_id=product.id)
-        media_cleanup = _make_media_cleanup()
 
         handler = DeleteProductMediaHandler(
+            product_repo=uow.products,
             media_repo=uow.media_assets,
             uow=uow,
-            media_cleanup=media_cleanup,
             logger=_make_logger(),
         )
         with pytest.raises(MediaAssetNotFoundError):
@@ -489,33 +501,38 @@ class TestDeleteProductMedia:
             )
         assert uow.committed is False
 
-    async def test_cleanup_after_commit_not_before(self):
-        """Verify media_cleanup.delete is called AFTER uow.commit."""
+    async def test_aggregate_registered_before_commit(self):
+        """Aggregate registration must happen INSIDE the UoW so the
+        detach event lands in the outbox in the same transaction as the
+        DB delete. Regression for the pre-IMG-005 anti-pattern where
+        S3 cleanup ran in-process after commit and a mid-flight crash
+        orphaned the storage object forever.
+        """
         uow = FakeUnitOfWork()
         product = _seed_product(uow)
         storage_id = uuid.uuid4()
         media = _seed_media(uow, product_id=product.id, storage_object_id=storage_id)
 
-        call_order = []
+        order: list[str] = []
+        original_register = uow.register_aggregate
+
+        def tracking_register(aggregate):
+            order.append("register_aggregate")
+            return original_register(aggregate)
+
         original_commit = uow.commit
 
         async def tracking_commit():
+            order.append("commit")
             await original_commit()
-            call_order.append("commit")
 
+        uow.register_aggregate = tracking_register  # ty: ignore[invalid-assignment]
         uow.commit = tracking_commit  # ty: ignore[invalid-assignment]
 
-        media_cleanup = _make_media_cleanup()
-
-        async def tracking_delete(sid):
-            call_order.append("delete")
-
-        media_cleanup.delete = tracking_delete
-
         handler = DeleteProductMediaHandler(
+            product_repo=uow.products,
             media_repo=uow.media_assets,
             uow=uow,
-            media_cleanup=media_cleanup,
             logger=_make_logger(),
         )
         await handler.handle(
@@ -525,7 +542,7 @@ class TestDeleteProductMedia:
             )
         )
 
-        assert call_order == ["commit", "delete"]
+        assert order == ["register_aggregate", "commit"]
 
 
 # ============================================================================
