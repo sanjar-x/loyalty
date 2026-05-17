@@ -134,7 +134,10 @@ from src.modules.catalog.application.commands.update_template_attribute_binding 
     UpdateTemplateAttributeBindingHandler,
 )
 from src.modules.catalog.application.commands.update_variant import UpdateVariantHandler
-from src.modules.catalog.application.ports import IProductSearchService
+from src.modules.catalog.application.ports import (
+    IProductHydrationReader,
+    IProductSearchService,
+)
 from src.modules.catalog.application.queries.breadcrumbs import BreadcrumbsBuilder
 from src.modules.catalog.application.queries.compute_facets import (
     ComputeFacetsHandler,
@@ -252,6 +255,9 @@ from src.modules.catalog.infrastructure.adapters.media_cleanup_adapter import (
 )
 from src.modules.catalog.infrastructure.adapters.postgres_product_search_service import (
     PostgresProductSearchService,
+)
+from src.modules.catalog.infrastructure.adapters.product_hydration_adapter import (
+    ProductHydrationAdapter,
 )
 from src.modules.catalog.infrastructure.repositories import (
     AttributeGroupRepository,
@@ -550,6 +556,16 @@ class StorefrontCatalogProvider(Provider):
             search_handler=pg_search,
             suggest_handler=pg_suggest,
         )
+
+    # Phase 2.6 — hydration reader used by the ProductIndexer consumer
+    # (outbox-driven) and the upcoming initial-reindex CLI. Lives at
+    # REQUEST scope alongside the AsyncSession it consumes; the indexer
+    # itself is constructed lazily inside its TaskIQ task body.
+    product_hydration_reader: CompositeDependencySource = provide(
+        ProductHydrationAdapter,
+        scope=Scope.REQUEST,
+        provides=IProductHydrationReader,
+    )
 
 
 class ProductProvider(Provider):

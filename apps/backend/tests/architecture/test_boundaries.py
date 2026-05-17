@@ -142,6 +142,11 @@ ALLOWED_CROSS_MODULE = {
         "src.modules.catalog.application.queries.get_storefront_product",
         "src.modules.catalog.application.queries.search_products",
         "src.modules.catalog.application.queries.get_storefront_cards_by_ids",
+        # SPEC - Elasticsearch Product Search §5: indexer hydration
+        # denormalises ``supplier_type`` into the ES doc so search-time
+        # filters can branch on cross-border vs local without a join.
+        # Same anti-corruption pattern as the storefront queries above.
+        "src.modules.catalog.infrastructure.adapters.product_hydration_adapter",
     },
     # ADR-005 / ADR-005a — pricing recompute reads SKU purchase price
     # from catalog through a read-only ACL adapter and writes the
