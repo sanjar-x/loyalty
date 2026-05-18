@@ -85,3 +85,18 @@ repos:
         stages: [pre-push]
         pass_filenames: false
         language: system
+
+      # Q5 — codegen drift guard (Buy Now-style rescue: backend merged
+      # endpoint, frontend forgot ``npm run api:gen`` → silent broken
+      # production). Fires on any change to backend presentation layer
+      # (router_*.py / schemas.py / domain enums surfaced in schemas).
+      # Compares regenerated openapi.json against committed copies in
+      # backend, admin (×2 admin-subset), and mini-app. On drift exits
+      # with the fix-up commands the developer must run.
+      - id: backend-openapi-drift-check
+        name: backend openapi drift check (backend + admin + mini-app)
+        entry: bash -c 'cd apps/backend && make openapi-check'
+        stages: [pre-push]
+        pass_filenames: false
+        language: system
+        files: ^apps/backend/src/modules/.*/(presentation/.*\.py|domain/value_objects\.py)$|^apps/backend/src/api/.*\.py$|^apps/backend/src/shared/schemas\.py$|^apps/backend/openapi\.json$|^apps/frontend/(admin/openapi/|mini-app/openapi\.json)

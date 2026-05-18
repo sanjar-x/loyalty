@@ -80,6 +80,7 @@ make production-smoke                                                     # stan
 | `backend-production-smoke` | Undeclared runtime dependencies (via `uv sync --no-dev --frozen`) and DI / import errors (via `create_app()` and `broker` smoke imports). ~10s locally. **Closes the PR-6b nanoid gap.** A `trap` restores the dev venv on exit so a failed gate never leaves the local environment in `--no-dev` state. |
 | `backend-tests-unit` | Domain regressions before they ever reach the remote. Full unit suite — PC-201c resolved in Sprint 3 (D0.2), no `--ignore` flag any more. |
 | `backend-tests-architecture` | Architecture fitness rules (Rule 6 / 6b / 8 / 9 / 10 / 11 + CC-001) parametrized over the 15 modules. Catches structural regressions (cross-module imports, missing manifests, FSM mixin bypass, ...). |
+| `backend-openapi-drift-check` | **Q5 drift guard** (added Sprint 1.5, 2026-05-19). Fires when any router / presentation schema / `domain/value_objects.py` / `src/api/*` / `src/shared/schemas.py` changes. Regenerates `openapi.json` in-process via `make openapi-check`, compares against the 4 committed copies (`apps/backend/openapi.json`, `apps/frontend/admin/openapi/{backend,backend-mini}.json`, `apps/frontend/mini-app/openapi.json`). Mismatch → exits with `make openapi-sync` + `npm run api:gen / api:types` fix-up commands. Closes the Buy Now-style «backend merged, frontend codegen forgotten» gap. |
 
 ### Escape hatch
 
