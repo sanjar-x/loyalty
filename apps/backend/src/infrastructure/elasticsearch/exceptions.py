@@ -29,6 +29,7 @@ from elasticsearch import NotFoundError as ESNotFoundError
 from src.shared.exceptions import (
     AppException,
     SearchBackendError,
+    SearchClientError,
     SearchConflictError,
     SearchIndexNotFoundError,
 )
@@ -85,12 +86,21 @@ def translate(
                 if index
                 else {"status": status},
             )
-        # 4xx other than 404/409 — programmer error (bad query, schema
-        # mismatch). Return a generic backend error rather than masking
-        # it as a 503; the operator should see the original message.
-        return SearchBackendError(
-            message=f"Elasticsearch API error: {exc}",
-            details={"status": status},
+        # H9 (Deep Review fix): 4xx other than 404/409 = programmer
+        # error (bad query, mapping mismatch, illegal field type).
+        # Route through ``SearchClientError`` (400) so:
+        # * operator on-call sees a 4xx alarm, not a 5xx — severities
+        #   match the actual cause;
+        # * TaskIQ retry policy stops looping the same broken doc
+        #   (a 400-mapped exception still raises, the indexer's
+        #   ``max_retries=5`` exhausts naturally and the row lands in
+        #   the DLQ for triage instead of churning forever);
+        # * front-end gets a deterministic ``SEARCH_CLIENT_ERROR``
+        #   envelope instead of "service temporarily unavailable".
+        return SearchClientError(
+            message=f"Elasticsearch rejected the request: {exc}",
+            status=status,
+            index=index,
         )
 
     if isinstance(exc, (ESConnectionError, ConnectionTimeout)):

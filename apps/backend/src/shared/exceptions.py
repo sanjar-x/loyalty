@@ -295,3 +295,32 @@ class SearchConflictError(ConflictError):
             error_code="SEARCH_DOC_CONFLICT",
             details={"index": index, "doc_id": doc_id},
         )
+
+
+class SearchClientError(ValidationError):
+    """Raised when ES returns a 4xx other than 404/409 (HTTP 400).
+
+    Distinct from :class:`SearchBackendError` (which is 503 — *retryable
+    transient outage*) because this is a **client-side bug**: malformed
+    query, mapping mismatch, illegal field type, etc. Operator retry
+    cannot help — the request itself needs developer attention. Mapping
+    it to 400 makes the on-call alert ("4xx surge") meaningful and stops
+    the indexer from looping the same broken document through TaskIQ
+    retries.
+    """
+
+    def __init__(
+        self,
+        *,
+        message: str,
+        status: int,
+        index: str | None = None,
+    ):
+        details: dict[str, Any] = {"status": status}
+        if index is not None:
+            details["index"] = index
+        super().__init__(
+            message=message,
+            error_code="SEARCH_CLIENT_ERROR",
+            details=details,
+        )

@@ -275,13 +275,26 @@ async def _do_brand_fan_out(payload: dict, hydration: IProductHydrationReader) -
         logger.warning("brand_fan_out.skip", reason="bad_brand_id", raw=str(raw))
         return
 
+    # H7 (Deep Review fix): propagate correlation_id from the outbox
+    # bridge so a brand-rename storm stays traceable end-to-end across
+    # the fan-out → per-product index_product_task hop. Pre-fix the
+    # nested ``.kicker().kiq()`` call lost the label and on-call had
+    # no way to correlate "indexed 50k products" with the originating
+    # BrandUpdatedEvent.
+    correlation_id = payload.get("correlation_id")
+    child_labels = _labels(correlation_id)
+
     enqueued = 0
     async for product_id in hydration.iter_product_ids_by_brand(brand_id):
-        await index_product_task.kicker().kiq(  # ty:ignore[no-matching-overload]
-            payload={"product_id": str(product_id)}
-        )
+        kicker = index_product_task.kicker().with_labels(**child_labels)
+        await kicker.kiq(payload={"product_id": str(product_id)})  # ty:ignore[no-matching-overload]
         enqueued += 1
-    logger.info("brand_fan_out.done", brand_id=str(brand_id), enqueued=enqueued)
+    logger.info(
+        "brand_fan_out.done",
+        brand_id=str(brand_id),
+        enqueued=enqueued,
+        correlation_id=correlation_id,
+    )
 
 
 @broker.task(
@@ -323,24 +336,39 @@ async def _do_category_fan_out(
         logger.warning("category_fan_out.skip", reason="bad_category_id", raw=str(raw))
         return
 
+    # H7 (Deep Review fix): same correlation_id propagation as brand.
+    correlation_id = payload.get("correlation_id")
+    child_labels = _labels(correlation_id)
+
     enqueued = 0
     async for product_id in hydration.iter_product_ids_by_category(category_id):
-        await index_product_task.kicker().kiq(  # ty:ignore[no-matching-overload]
-            payload={"product_id": str(product_id)}
-        )
+        kicker = index_product_task.kicker().with_labels(**child_labels)
+        await kicker.kiq(payload={"product_id": str(product_id)})  # ty:ignore[no-matching-overload]
         enqueued += 1
     logger.info(
         "category_fan_out.done",
         category_id=str(category_id),
         enqueued=enqueued,
+        correlation_id=correlation_id,
     )
+
+
+def _payload_with_correlation(payload: dict, correlation_id: str | None) -> dict:
+    """Embed correlation_id into the fan-out payload so the consumer
+    can re-attach it to each child ``index_product_task.kicker()`` call
+    (TaskIQ labels do not propagate from broker to worker by default —
+    the fan-out body has to read them back from the payload itself).
+    """
+    if correlation_id is None:
+        return payload
+    return {**payload, "correlation_id": correlation_id}
 
 
 async def _on_brand_updated(payload: dict, correlation_id: str | None = None) -> None:
     await (
         fan_out_brand_reindex_task.kicker()
         .with_labels(**_labels(correlation_id))
-        .kiq(payload=payload)  # ty:ignore[no-matching-overload]
+        .kiq(payload=_payload_with_correlation(payload, correlation_id))  # ty:ignore[no-matching-overload]
     )
 
 
@@ -350,7 +378,7 @@ async def _on_category_updated(
     await (
         fan_out_category_reindex_task.kicker()
         .with_labels(**_labels(correlation_id))
-        .kiq(payload=payload)  # ty:ignore[no-matching-overload]
+        .kiq(payload=_payload_with_correlation(payload, correlation_id))  # ty:ignore[no-matching-overload]
     )
 
 
