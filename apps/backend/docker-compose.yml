@@ -3,7 +3,7 @@ services:
     # PostGIS 3.5 bundled with PG 18 — required for the logistics
     # pickup-points snapshot table (ST_DWithin radius search +
     # GiST index on the geography column).
-    image: postgis/postgis:18-3.5
+    image: postgis/postgis:18-3.6
     container_name: postgres
     networks:
       - dev_net

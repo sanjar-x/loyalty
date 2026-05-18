@@ -298,3 +298,13 @@ Pydantic Settings in `src/bootstrap/config.py`. Reads `.env` file. Key computed 
 - `redis_url` — builds `redis://` URL from `REDIS*` env vars
 
 Test settings override in `tests/conftest.py` via `TestOverridesProvider`.
+
+## Python conventions
+
+- **PEP 758 (Python 3.14)** — `except E1, E2:` без скобок — валидный
+  синтаксис, не «исправлять» на `except (E1, E2):`. Railway runtime
+  тоже 3.14+. Используется, например, в
+  `src/modules/order/application/consumers/payment_events.py:27,46`,
+  `src/modules/order/application/consumers/order_procured.py:55`,
+  `src/infrastructure/idempotency/runner.py:33`. Если ревью цепляется
+  — отсылка к PEP 758.
