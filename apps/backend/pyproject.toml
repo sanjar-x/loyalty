@@ -16,6 +16,10 @@ dependencies = [
     "sqlalchemy[asyncio]>=2.1.0b1",
     "asyncpg>=0.31.0",
     "alembic>=1.18.4",
+    # PostGIS bindings — pickup-points snapshot uses Geography(POINT, 4326)
+    # for ST_DWithin radius search under a GiST index (see logistics
+    # ``PickupPointModel`` and the ``pickup_points`` Alembic migration).
+    "geoalchemy2>=0.18",
     # --- DI container ---
     "dishka>=1.9.1",
     # --- Domain modeling ---

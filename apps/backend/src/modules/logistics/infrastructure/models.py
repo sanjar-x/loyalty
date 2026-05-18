@@ -9,9 +9,12 @@ Repositories translate between ORM and domain entities (Data Mapper pattern).
 import uuid
 from datetime import datetime
 
+from geoalchemy2 import Geography
 from sqlalchemy import (
     TIMESTAMP,
+    Boolean,
     Enum,
+    Float,
     ForeignKey,
     Index,
     Integer,
@@ -447,3 +450,139 @@ class DeliveryQuoteModel(Base):
         JSONB, comment="Destination address snapshot"
     )
     parcels_json: Mapped[list] = mapped_column(JSONB, comment="Parcels snapshot")
+
+
+# ---------------------------------------------------------------------------
+# PickupPoint snapshot (local mirror of CDEK / Yandex pickup-point catalogue)
+# ---------------------------------------------------------------------------
+
+
+class PickupPointModel(Base):
+    """Local snapshot of every pickup / delivery point known to a provider.
+
+    Populated by ``sync_pickup_points_task`` (TaskIQ cron, every 6 h) so
+    the storefront map reads from PostgreSQL with a GiST radius index
+    instead of paginating CDEK on every pan/zoom. ``QuoteForPickupPointHandler``
+    resolves a clicked marker against the same table.
+
+    Soft-delete via ``deleted_at``: when a sync run no longer sees a
+    given ``external_id``, the row is tombstoned rather than dropped so
+    references from booked orders remain queryable for audit.
+    """
+
+    __tablename__ = "pickup_points"
+    __table_args__ = (
+        UniqueConstraint(
+            "provider_code",
+            "external_id",
+            name="uq_pickup_points_provider_external_id",
+        ),
+        # All three supporting indexes (partial GiST on geom, partial
+        # B-tree on (provider_code, lower(city)), partial B-tree on
+        # provider_code) are declared as raw SQL inside the alembic
+        # migration ``a1b2c3d4e5f6`` because alembic autogenerate does
+        # not faithfully render partial expression indexes. Keep them
+        # out of __table_args__ to avoid duplicate-index drift.
+        {"comment": "Local snapshot of carrier pickup-point catalogues"},
+    )
+
+    id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True),
+        primary_key=True,
+        default=uuid.uuid4,
+        comment="Internal PK; carrier identity is (provider_code, external_id)",
+    )
+
+    provider_code: Mapped[str] = mapped_column(
+        String(32),
+        nullable=False,
+        comment="Carrier code: 'cdek' / 'yandex_delivery' / ...",
+    )
+    external_id: Mapped[str] = mapped_column(
+        String(128),
+        nullable=False,
+        comment="Carrier-side ID (CDEK PVZ code, Yandex platform_station_id)",
+    )
+
+    name: Mapped[str] = mapped_column(Text, nullable=False)
+    pickup_point_type: Mapped[str] = mapped_column(
+        String(32),
+        nullable=False,
+        comment="pvz | postamat | post_office | terminal",
+    )
+
+    # --- Address (flattened so simple WHERE clauses still index) -----------
+    country_code: Mapped[str] = mapped_column(String(2), nullable=False)
+    city: Mapped[str] = mapped_column(Text, nullable=False)
+    region: Mapped[str | None] = mapped_column(Text, nullable=True)
+    postal_code: Mapped[str | None] = mapped_column(String(32), nullable=True)
+    street: Mapped[str | None] = mapped_column(Text, nullable=True)
+    house: Mapped[str | None] = mapped_column(Text, nullable=True)
+    apartment: Mapped[str | None] = mapped_column(Text, nullable=True)
+    subdivision_code: Mapped[str | None] = mapped_column(String(16), nullable=True)
+    raw_address: Mapped[str | None] = mapped_column(Text, nullable=True)
+
+    # --- Geo ---------------------------------------------------------------
+    latitude: Mapped[float | None] = mapped_column(Float, nullable=True)
+    longitude: Mapped[float | None] = mapped_column(Float, nullable=True)
+    # geography(POINT, 4326) — WGS84 lat/lon. ``spatial_index=False``
+    # because we declare the GiST index by hand in __table_args__ (so the
+    # partial-WHERE clause is preserved across alembic autogenerates).
+    geom: Mapped[object | None] = mapped_column(
+        Geography(geometry_type="POINT", srid=4326, spatial_index=False),
+        nullable=True,
+        comment="PostGIS WGS84 point built from (latitude, longitude)",
+    )
+
+    # --- Capabilities ------------------------------------------------------
+    work_schedule: Mapped[str | None] = mapped_column(Text, nullable=True)
+    phone: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    is_cash_allowed: Mapped[bool] = mapped_column(
+        Boolean, nullable=False, default=False
+    )
+    is_card_allowed: Mapped[bool] = mapped_column(
+        Boolean, nullable=False, default=False
+    )
+    weight_limit_grams: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    dimensions_limit_json: Mapped[dict | None] = mapped_column(
+        JSONB,
+        nullable=True,
+        comment="{length_cm, width_cm, height_cm} or NULL",
+    )
+    services_json: Mapped[dict | None] = mapped_column(
+        JSONB,
+        nullable=True,
+        comment="PickupPointServices flags (fitting / partial refuse / ...)",
+    )
+
+    # --- Provider-specific metadata (CDEK city_code, Yandex station_id) ---
+    address_metadata_json: Mapped[dict] = mapped_column(
+        JSONB,
+        nullable=False,
+        default=dict,
+        server_default="{}",
+        comment="Carrier-specific Address.metadata payload",
+    )
+
+    # --- Lifecycle ---------------------------------------------------------
+    synced_at: Mapped[datetime] = mapped_column(
+        TIMESTAMP(timezone=True),
+        nullable=False,
+        comment="Last time a sync run saw this row from the carrier",
+    )
+    deleted_at: Mapped[datetime | None] = mapped_column(
+        TIMESTAMP(timezone=True),
+        nullable=True,
+        comment="Tombstone — set when a sync no longer sees this external_id",
+    )
+    created_at: Mapped[datetime] = mapped_column(
+        TIMESTAMP(timezone=True),
+        nullable=False,
+        server_default=func.now(),
+    )
+    updated_at: Mapped[datetime] = mapped_column(
+        TIMESTAMP(timezone=True),
+        nullable=False,
+        server_default=func.now(),
+        onupdate=func.now(),
+    )

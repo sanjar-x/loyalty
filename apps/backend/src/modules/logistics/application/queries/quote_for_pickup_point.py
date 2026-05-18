@@ -39,7 +39,7 @@ from src.modules.logistics.domain.exceptions import (
 from src.modules.logistics.domain.interfaces import (
     IDeliveryQuoteRepository,
     IOriginAddressResolver,
-    IPickupPointResolver,
+    IPickupPointSnapshotRepository,
     IShippingProviderRegistry,
     ISkuWeightResolver,
 )
@@ -128,7 +128,7 @@ class QuoteForPickupPointHandler:
     def __init__(
         self,
         registry: IShippingProviderRegistry,
-        pickup_point_resolver: IPickupPointResolver,
+        snapshot_repo: IPickupPointSnapshotRepository,
         origin_resolver: IOriginAddressResolver,
         weight_resolver: ISkuWeightResolver,
         quote_repo: IDeliveryQuoteRepository,
@@ -136,7 +136,7 @@ class QuoteForPickupPointHandler:
         logger: ILogger,
     ) -> None:
         self._registry = registry
-        self._pickup_point_resolver = pickup_point_resolver
+        self._snapshot_repo = snapshot_repo
         self._origin_resolver = origin_resolver
         self._weight_resolver = weight_resolver
         self._quote_repo = quote_repo
@@ -209,23 +209,24 @@ class QuoteForPickupPointHandler:
     async def _resolve_destination(
         self, query: QuoteForPickupPointQuery
     ) -> PickupPoint:
-        point = await self._pickup_point_resolver.resolve(
+        point = await self._snapshot_repo.find_one(
             provider_code=query.provider_code,
             external_id=query.pickup_point_external_id,
         )
         if point is None:
             # The frontend always lists pickup-points before the user
-            # clicks one, so a miss means either: cache TTL elapsed
-            # while the user lingered on the map, or the storefront
-            # supplied a stale id. Either way the corrective action is
-            # to re-list — we surface a clear 4xx instead of pretending
-            # to quote against an unknown address.
+            # The frontend always lists pickup-points before the user
+            # clicks one, so a miss usually means the carrier tombstoned
+            # the point between listing and quote (or the storefront
+            # supplied a stale id). The corrective action is to re-list,
+            # so we surface a clear 4xx instead of pretending to quote
+            # against an unknown address.
             raise NoEligibleProvidersError(
                 details={
                     "provider_code": query.provider_code,
                     "pickup_point_external_id": query.pickup_point_external_id,
                     "reason": (
-                        "pickup_point not found in cache — call "
+                        "pickup_point not found in snapshot — call "
                         "/logistics/pickup-points first"
                     ),
                 }
@@ -236,7 +237,7 @@ class QuoteForPickupPointHandler:
                     "provider_code": query.provider_code,
                     "actual_provider_code": point.provider_code,
                     "pickup_point_external_id": query.pickup_point_external_id,
-                    "reason": "provider_code does not match cached pickup_point",
+                    "reason": "provider_code mismatch with stored pickup_point",
                 }
             )
         return point

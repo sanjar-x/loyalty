@@ -7,6 +7,7 @@ Part of the domain layer — zero framework imports.
 """
 
 import uuid
+from datetime import datetime
 from typing import Any, Protocol
 
 from src.modules.logistics.domain.entities import Shipment
@@ -509,6 +510,88 @@ class IDeliveryQuoteRepository(Protocol):
     async def delete_expired(self) -> int: ...
 
 
+class IPickupPointSnapshotRepository(Protocol):
+    """Persistence port for the local pickup-point snapshot table.
+
+    The snapshot is filled by ``sync_pickup_points_task`` (TaskIQ cron,
+    every 6 h) from each provider's full catalogue. The storefront map
+    and ``QuoteForPickupPointHandler`` both read from this table; they
+    no longer call carrier APIs on the user-facing path.
+
+    Soft-delete semantics: rows that a sync run no longer sees are
+    tombstoned (``deleted_at`` is set) rather than dropped — so
+    references from booked orders stay queryable for audit, and a row
+    that briefly disappears from a flaky carrier response is naturally
+    revived by ``upsert_batch`` clearing ``deleted_at`` again.
+    """
+
+    async def find_one(
+        self,
+        provider_code: ProviderCode,
+        external_id: str,
+    ) -> PickupPoint | None:
+        """Return the active point for the given carrier identity, or ``None``.
+
+        Tombstoned rows are treated as absent — callers must not see
+        a point the carrier has retired.
+        """
+        ...
+
+    async def search(self, query: PickupPointQuery) -> list[PickupPoint]:
+        """Return active points matching the search criteria.
+
+        Resolution order:
+        * If ``latitude+longitude`` is set — radius search via
+          ``ST_DWithin`` (defaults to a 10 km bubble when ``radius_km``
+          is not supplied; capped at 100 km to stay aligned with the
+          storefront contract).
+        * Else if ``city`` is set — case-insensitive city match,
+          optionally narrowed by ``country_code``.
+        * Else — empty list (no bounded area to search).
+
+        ``provider_code`` / ``delivery_type`` on the query, when set,
+        narrow the result. Tombstoned rows are filtered out
+        unconditionally.
+        """
+        ...
+
+    async def upsert_batch(
+        self,
+        provider_code: ProviderCode,
+        points: list[PickupPoint],
+        synced_at: datetime,
+    ) -> tuple[int, int]:
+        """Insert or update a batch keyed by ``(provider_code, external_id)``.
+
+        Already-known external_ids are overwritten with the latest
+        carrier payload (including ``synced_at``). Tombstoned rows are
+        revived (``deleted_at`` cleared) when the carrier brings them
+        back. Empty input is a no-op.
+
+        Returns ``(inserted, updated)``.
+        """
+        ...
+
+    async def mark_deleted_except(
+        self,
+        provider_code: ProviderCode,
+        kept_external_ids: set[str],
+        synced_at: datetime,
+    ) -> int:
+        """Tombstone every active row for ``provider_code`` not in ``kept_external_ids``.
+
+        Called after a successful full pull so any point the carrier
+        no longer reports gets a non-NULL ``deleted_at``. The full
+        ``kept_external_ids`` set guards against accidental mass
+        tombstoning when a flaky pull returned only a partial slice —
+        the sync task uses an explicit "fully reconciled" flag instead
+        of always tombstoning.
+
+        Returns the number of rows newly tombstoned.
+        """
+        ...
+
+
 class IProviderAccountRepository(Protocol):
     """Persistence port for ``ProviderAccount`` aggregates.
 
@@ -543,39 +626,6 @@ class IProviderAccountRepository(Protocol):
 # ---------------------------------------------------------------------------
 # SKU weight resolver (anti-corruption port → catalog + pricing)
 # ---------------------------------------------------------------------------
-
-
-class IPickupPointResolver(Protocol):
-    """Resolve a previously-listed pickup point back to its full ``PickupPoint``.
-
-    Checkout flow needs this when the user clicks a marker on the map:
-    the frontend only knows ``(provider_code, external_id)`` and asks the
-    backend to compute a delivery quote against that point. Re-fetching
-    the entire province-wide pickup list per click would melt the
-    provider's API, so the implementation caches a recent ``/pickup-points``
-    response (typically Redis with a 24 h TTL) and reads from it.
-
-    Returns ``None`` when the cache holds no record for the
-    ``(provider_code, external_id)`` pair — callers should respond with a
-    400/404 explaining that the point must be listed via ``/pickup-points``
-    first (the frontend always does this before letting the user click).
-    """
-
-    async def resolve(
-        self,
-        provider_code: ProviderCode,
-        external_id: str,
-    ) -> PickupPoint | None: ...
-
-    async def remember_many(self, points: list[PickupPoint]) -> None:
-        """Persist a list of points so subsequent ``resolve`` lookups hit.
-
-        Called from ``ListPickupPointsHandler`` after a successful provider
-        fan-out. Implementations swallow backend failures so a Redis
-        outage does not break pickup-point listing — quotes against any
-        cached-but-now-expired point will fall back to a re-fetch path.
-        """
-        ...
 
 
 class IOriginAddressResolver(Protocol):

@@ -1,16 +1,20 @@
 """
-Query handler: list pickup / delivery points from logistics providers.
+Query handler: list pickup / delivery points from the local snapshot.
 
-CQRS read side — calls provider APIs directly. Supports single-provider
-or fan-out across all eligible providers.
+CQRS read side — backed by ``pickup_points`` PostgreSQL table that
+``sync_pickup_points_task`` refreshes every 6 hours from every carrier
+catalogue. The user-facing path no longer touches CDEK / Yandex; the
+storefront map reads from a partial GiST radius index.
+
+``provider_code``, when set on the input query, narrows the result to
+one carrier; otherwise every active row across all providers comes
+back in a single response.
 """
 
-import asyncio
 from dataclasses import dataclass
 
 from src.modules.logistics.domain.interfaces import (
-    IPickupPointResolver,
-    IShippingProviderRegistry,
+    IPickupPointSnapshotRepository,
 )
 from src.modules.logistics.domain.value_objects import (
     PickupPoint,
@@ -26,7 +30,8 @@ class ListPickupPointsQuery:
 
     Attributes:
         query: Search criteria (location, filters, etc.).
-        provider_code: If set, query only this provider; else fan-out.
+        provider_code: If set, narrow the snapshot search to this
+            carrier; else return points from every provider.
     """
 
     query: PickupPointQuery
@@ -38,8 +43,11 @@ class ListPickupPointsResult:
     """Output of pickup points listing.
 
     Attributes:
-        points: Aggregated pickup points from all queried providers.
-        errors: Per-provider errors for providers that failed.
+        points: All matching pickup points from the snapshot.
+        errors: Per-provider error map — always empty on the snapshot
+            path; preserved for wire-shape compatibility with the
+            previous live-fan-out implementation, so the frontend's
+            ``errors`` rendering keeps compiling unchanged.
     """
 
     points: list[PickupPoint]
@@ -47,85 +55,65 @@ class ListPickupPointsResult:
 
 
 class ListPickupPointsHandler:
-    """List pickup/delivery points from one or all providers.
+    """List pickup/delivery points from the local snapshot.
 
-    Warm-side-effect: every successful provider call is immediately
-    written into ``IPickupPointResolver`` so a follow-up
-    ``/rates/quote`` request can recover the full ``PickupPoint`` from
-    just ``(provider_code, external_id)`` without re-hitting the
-    provider's rate-limited API. Cache failures are best-effort —
-    they never break the listing response.
+    No carrier calls, no per-provider timeouts, no fan-out aggregation:
+    a single indexed PostgreSQL query (``ST_DWithin`` for radius search
+    or ``lower(city)`` for city search) returns the union.
+
+    The snapshot is refreshed by ``sync_pickup_points_task`` and seeded
+    by the matching management command. When the table is empty on a
+    fresh deploy this handler returns an empty list — operators MUST
+    run the seed command before flipping the storefront over.
     """
 
     def __init__(
         self,
-        registry: IShippingProviderRegistry,
-        pickup_point_resolver: IPickupPointResolver,
+        snapshot_repo: IPickupPointSnapshotRepository,
         logger: ILogger,
     ) -> None:
-        self._registry = registry
-        self._pickup_point_resolver = pickup_point_resolver
+        self._snapshot_repo = snapshot_repo
         self._logger = logger.bind(handler="ListPickupPointsHandler")
 
     async def handle(self, query: ListPickupPointsQuery) -> ListPickupPointsResult:
+        # Push the provider filter into the search query — the snapshot
+        # repository expects it on ``PickupPointQuery.provider_code``,
+        # and applying it at the SQL level lets the partial index do
+        # the work instead of a Python-side filter.
+        effective_query = query.query
         if query.provider_code is not None:
-            # Single provider query
-            provider = self._registry.get_pickup_point_provider(query.provider_code)
-            try:
-                points = await provider.list_pickup_points(query.query)
-            except Exception as exc:
-                self._logger.warning(
-                    "Pickup point listing failed",
-                    provider=query.provider_code,
-                    error=str(exc),
-                )
-                return ListPickupPointsResult(
-                    points=[],
-                    errors={query.provider_code: str(exc)},
-                )
-            await self._warm_cache(points)
-            return ListPickupPointsResult(points=points, errors={})
+            effective_query = _with_provider(effective_query, query.provider_code)
 
-        # Fan-out across all registered providers
-        providers = self._registry.list_pickup_point_providers()
-        if not providers:
-            return ListPickupPointsResult(points=[], errors={})
-
-        tasks = {}
-        for provider in providers:
-            code = provider.provider_code()
-            tasks[code] = asyncio.create_task(provider.list_pickup_points(query.query))
-
-        results = await asyncio.gather(*tasks.values(), return_exceptions=True)
-
-        all_points: list[PickupPoint] = []
-        errors: dict[str, str] = {}
-
-        for code, result in zip(tasks.keys(), results, strict=True):
-            if isinstance(result, BaseException):
-                self._logger.warning(
-                    "Pickup point listing failed",
-                    provider=code,
-                    error=str(result),
-                )
-                errors[code] = str(result)
-            else:
-                all_points.extend(result)
-
-        await self._warm_cache(all_points)
-        return ListPickupPointsResult(points=all_points, errors=errors)
-
-    async def _warm_cache(self, points: list[PickupPoint]) -> None:
+        points = await self._snapshot_repo.search(effective_query)
         if not points:
-            return
-        try:
-            await self._pickup_point_resolver.remember_many(points)
-        except Exception as exc:
-            # Cache warming is fire-and-forget — Redis being down must
-            # not break the listing endpoint. The resolver itself logs
-            # the underlying error; we just note that we tried.
-            self._logger.warning(
-                "Pickup-point cache warming failed",
-                error=str(exc),
-                point_count=len(points),
+            self._logger.info(
+                "pickup_points.empty_result",
+                provider_code=query.provider_code,
+                city=effective_query.city,
+                has_geo=(
+                    effective_query.latitude is not None
+                    and effective_query.longitude is not None
+                ),
             )
+        return ListPickupPointsResult(points=points, errors={})
+
+
+def _with_provider(
+    query: PickupPointQuery, provider_code: ProviderCode
+) -> PickupPointQuery:
+    """Return a copy of ``query`` with ``provider_code`` forced.
+
+    Centralised so the handler doesn't reach into the dataclass shape;
+    if ``PickupPointQuery`` gains more fields tomorrow only this helper
+    has to grow.
+    """
+    return PickupPointQuery(
+        country_code=query.country_code,
+        city=query.city,
+        postal_code=query.postal_code,
+        latitude=query.latitude,
+        longitude=query.longitude,
+        radius_km=query.radius_km,
+        provider_code=provider_code,
+        delivery_type=query.delivery_type,
+    )

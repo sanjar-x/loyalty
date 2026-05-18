@@ -7,6 +7,10 @@
 * ``edit_task_poll_task`` — every minute; polls async edit tickets
   for shipments with outstanding ``pending_edit_tasks`` and settles
   the ones that reached a terminal state.
+* ``sync_pickup_points_task`` — every 6 hours; refreshes the local
+  ``pickup_points`` snapshot from every carrier's catalogue so the
+  storefront map and quote handler read from a GiST-indexed PG table
+  instead of paginating the carrier on every request.
 """
 
 import structlog
@@ -21,6 +25,7 @@ from src.modules.logistics.application.commands.ingest_tracking import (
 )
 from src.modules.logistics.domain.interfaces import (
     IDeliveryQuoteRepository,
+    IPickupPointSnapshotRepository,
     IShipmentRepository,
     IShippingProviderRegistry,
 )
@@ -30,6 +35,10 @@ from src.modules.logistics.domain.value_objects import (
 )
 from src.modules.logistics.infrastructure.models import ShipmentModel
 from src.modules.logistics.infrastructure.providers.errors import ProviderHTTPError
+from src.modules.logistics.infrastructure.services.pickup_point_sync import (
+    sync_all_pickup_points,
+)
+from src.shared.interfaces.logger import ILogger
 from src.shared.interfaces.uow import IUnitOfWork
 
 logger = structlog.get_logger(__name__)
@@ -273,4 +282,56 @@ async def edit_task_poll_task(
         "shipments_with_pending": len(shipments),
         "tasks_polled": polled,
         "tasks_settled": settled,
+    }
+
+
+# ---------------------------------------------------------------------------
+# Pickup-point snapshot sync (BRD: «кэш 24ч») — every 6 hours.
+# A 6-hour cadence keeps the snapshot well inside the BRD freshness
+# window while staying gentle on CDEK / Yandex rate-limits (one full
+# catalogue pull per provider, not one per pan/zoom).
+# ---------------------------------------------------------------------------
+
+
+@broker.task(
+    queue="logistics_pickup_points_sync",
+    exchange="taskiq_rpc_exchange",
+    routing_key="logistics.pickup_points.sync",
+    max_retries=0,
+    retry_on_error=False,
+    timeout=1800,
+    schedule=[
+        {"cron": "0 */6 * * *", "schedule_id": "pickup_points_sync_every_6h"},
+    ],
+)
+@inject
+async def sync_pickup_points_task(
+    registry: FromDishka[IShippingProviderRegistry],
+    snapshot_repo: FromDishka[IPickupPointSnapshotRepository],
+    uow: FromDishka[IUnitOfWork],
+    structured_logger: FromDishka[ILogger],
+) -> dict:
+    """Refresh the local pickup-point snapshot from every carrier."""
+    summary = await sync_all_pickup_points(
+        registry=registry,
+        snapshot_repo=snapshot_repo,
+        uow=uow,
+        logger=structured_logger,
+    )
+    return {
+        "status": "success" if summary.total_failed == 0 else "partial",
+        "providers": len(summary.per_provider),
+        "failed": summary.total_failed,
+        "fetched_total": summary.total_fetched,
+        "per_provider": [
+            {
+                "provider": r.provider_code,
+                "fetched": r.fetched,
+                "inserted": r.inserted,
+                "updated": r.updated,
+                "tombstoned": r.tombstoned,
+                "error": r.error,
+            }
+            for r in summary.per_provider
+        ],
     }

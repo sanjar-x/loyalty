@@ -4,7 +4,7 @@ Reads the trusted server-side ``DeliveryQuote`` and resolves the
 shipment's address / parcel / sender data from the same server-side
 sources the quote was built from:
 
-* ``IPickupPointResolver`` → destination ``Address`` (the cached
+* ``IPickupPointSnapshotRepository`` → destination ``Address`` (the local
   pickup-point response, no extra provider call).
 * ``IOriginAddressResolver`` → sender warehouse ``Address`` from
   ``ProviderAccountModel.config_json``.
@@ -31,7 +31,7 @@ from src.modules.logistics.domain.exceptions import (
 from src.modules.logistics.domain.interfaces import (
     IDeliveryQuoteRepository,
     IOriginAddressResolver,
-    IPickupPointResolver,
+    IPickupPointSnapshotRepository,
     IShipmentRepository,
 )
 from src.modules.logistics.domain.value_objects import (
@@ -78,14 +78,14 @@ class CreateShipmentHandler:
         self,
         shipment_repo: IShipmentRepository,
         quote_repo: IDeliveryQuoteRepository,
-        pickup_point_resolver: IPickupPointResolver,
+        snapshot_repo: IPickupPointSnapshotRepository,
         origin_resolver: IOriginAddressResolver,
         uow: IUnitOfWork,
         logger: ILogger,
     ) -> None:
         self._shipment_repo = shipment_repo
         self._quote_repo = quote_repo
-        self._pickup_point_resolver = pickup_point_resolver
+        self._snapshot_repo = snapshot_repo
         self._origin_resolver = origin_resolver
         self._uow = uow
         self._logger = logger.bind(handler="CreateShipmentHandler")
@@ -145,9 +145,8 @@ class CreateShipmentHandler:
         """Resolve destination ``Address`` and (optional) point operator contact.
 
         Pulls the pickup-point ``external_id`` written into the quote's
-        ``provider_payload`` at /rates/quote time. The resolver hits the
-        cached pickup-point response (Redis, 24h TTL) — no extra
-        provider call.
+        ``provider_payload`` at /rates/quote time and looks it up in the
+        local ``pickup_points`` snapshot — no extra carrier call.
         """
         external_id = payload.get("pickup_point_external_id")
         if not external_id:
@@ -158,14 +157,15 @@ class CreateShipmentHandler:
                 ),
                 details={"provider_code": provider_code},
             )
-        point = await self._pickup_point_resolver.resolve(
+        point = await self._snapshot_repo.find_one(
             provider_code=provider_code,
             external_id=external_id,
         )
         if point is None:
             raise ValidationError(
                 message=(
-                    "Pickup point referenced by the quote is no longer cached. "
+                    "Pickup point referenced by the quote is no longer "
+                    "in the snapshot (likely tombstoned by a sync run). "
                     "Re-list /pickup-points and request a fresh /rates/quote."
                 ),
                 details={

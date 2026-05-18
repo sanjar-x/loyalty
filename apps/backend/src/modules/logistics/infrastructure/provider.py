@@ -105,7 +105,7 @@ from src.modules.logistics.application.queries.quote_for_pickup_point import (
 from src.modules.logistics.domain.interfaces import (
     IDeliveryQuoteRepository,
     IOriginAddressResolver,
-    IPickupPointResolver,
+    IPickupPointSnapshotRepository,
     IProviderAccountRepository,
     IProviderRoutingPolicy,
     IShipmentRepository,
@@ -116,9 +116,6 @@ from src.modules.logistics.domain.value_objects import PROVIDER_CDEK
 from src.modules.logistics.infrastructure.adapters.origin_address_resolver import (
     ProviderAccountOriginResolver,
 )
-from src.modules.logistics.infrastructure.adapters.pickup_point_cache import (
-    RedisPickupPointResolver,
-)
 from src.modules.logistics.infrastructure.adapters.pricing_weight_adapter import (
     PricingWeightAdapter,
 )
@@ -128,6 +125,9 @@ from src.modules.logistics.infrastructure.providers.cdek.admin_service import (
 )
 from src.modules.logistics.infrastructure.repositories.delivery_quote import (
     DeliveryQuoteRepository,
+)
+from src.modules.logistics.infrastructure.repositories.pickup_point_snapshot import (
+    PgPickupPointSnapshotRepository,
 )
 from src.modules.logistics.infrastructure.repositories.provider_account import (
     ProviderAccountRepository,
@@ -169,10 +169,10 @@ class LogisticsInfraProvider(Provider):
         scope=Scope.REQUEST,
         provides=ISkuWeightResolver,
     )
-    pickup_point_resolver: CompositeDependencySource = provide(
-        RedisPickupPointResolver,
+    pickup_point_snapshot_repo: CompositeDependencySource = provide(
+        PgPickupPointSnapshotRepository,
         scope=Scope.REQUEST,
-        provides=IPickupPointResolver,
+        provides=IPickupPointSnapshotRepository,
     )
     origin_address_resolver: CompositeDependencySource = provide(
         ProviderAccountOriginResolver,
