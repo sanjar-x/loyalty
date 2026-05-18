@@ -36,6 +36,11 @@ logs/
 *.sqlite3
 *.db
 
+# Database dumps / backups (НЕ коммитить — могут содержать чувствительные данные)
+*.dump
+*.sql.gz
+*backup*.sql
+
 # OS generated files
 .DS_Store
 .DS_Store?
