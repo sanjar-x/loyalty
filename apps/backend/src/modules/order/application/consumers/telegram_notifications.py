@@ -79,6 +79,29 @@ class TelegramOrderNotifier:
     # Event handlers
     # ------------------------------------------------------------------
 
+    async def on_order_paid(self, payload: dict) -> None:
+        """Bridge ``OrderPaidEvent`` → "оплата принята" push.
+
+        Закрывает разрыв «оплатил → тишина 24-72 часа до procurement».
+        Эмитится после успешного capture (cart-flow / Buy Now /
+        walk-in без offline-receipt). Не эмитится для
+        :class:`OrderPaidOfflineEvent` — там у admin'а есть свой
+        канал коммуникации с customer'ом (walk-in).
+        """
+        order = await self._resolve_order(payload, event_type="OrderPaidEvent")
+        if order is None:
+            return
+        chat_id = await self._resolve_chat_id(order, event_type="OrderPaidEvent")
+        if chat_id is None:
+            return
+        text = (
+            f"<b>Заказ {_format_order_number(order)} оплачен</b>\n\n"
+            "Спасибо! Менеджер выкупит товар в ближайшие 24 часа — "
+            "как только это произойдёт, мы сообщим, что посылка "
+            "отправилась из Китая в Россию."
+        )
+        await self._send(chat_id, text, event_type="OrderPaidEvent", order=order)
+
     async def on_order_procured(self, payload: dict) -> None:
         order = await self._resolve_order(payload, event_type="OrderProcuredEvent")
         if order is None:

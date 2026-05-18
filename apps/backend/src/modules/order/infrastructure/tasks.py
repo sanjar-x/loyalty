@@ -236,6 +236,24 @@ def _telegram_task(routing_key: str):
     return decorator
 
 
+@_telegram_task("order.telegram.paid")
+@inject
+async def telegram_on_order_paid_task(
+    payload: dict,
+    *,
+    consumer: FromDishka[TelegramOrderNotifier],
+    inbox: FromDishka[IInboxStore],
+    session: FromDishka[AsyncSession],
+) -> dict:
+    return await run_inbox_idempotent(
+        payload=payload,
+        consumer_name="order.TelegramOrderPaid",
+        inbox=inbox,
+        session=session,
+        body=lambda: consumer.on_order_paid(payload),
+    )
+
+
 @_telegram_task("order.telegram.procured")
 @inject
 async def telegram_on_order_procured_task(
@@ -442,6 +460,23 @@ async def _on_russian_carrier(payload: dict, correlation_id: str | None = None) 
     )
 
 
+async def _on_order_paid_telegram(
+    payload: dict, correlation_id: str | None = None
+) -> None:
+    """Bridge ``OrderPaidEvent`` → Telegram «оплата принята» push.
+
+    Закрывает разрыв «оплатил → тишина 24-72 часа до procurement»
+    (BE-4, Sprint 1 / 2026-05-18). Эмитится для cart-flow и Buy Now
+    orders; ``OrderPaidOfflineEvent`` (walk-in) — отдельный канал,
+    обрабатывается admin'ом вне Telegram.
+    """
+    await (
+        telegram_on_order_paid_task.kicker()
+        .with_labels(**_labels(correlation_id))
+        .kiq(payload=payload)
+    )
+
+
 async def _on_order_procured(payload: dict, correlation_id: str | None = None) -> None:
     """ORD-006 (D1.2) — bridge ``OrderProcuredEvent`` → DobroPost booking
     AND T-2 / D3.1 — bridge into the Telegram customer-notification fan-out.
@@ -503,6 +538,7 @@ async def _on_order_delivered_telegram(
 
 register_event_handler("PaymentCapturedEvent", _on_payment_captured)
 register_event_handler("PaymentFailedEvent", _on_payment_failed)
+register_event_handler("OrderPaidEvent", _on_order_paid_telegram)
 register_event_handler("DobroPostStatusUpdatedEvent", _on_dobropost_status)
 register_event_handler("DobroPostPassportInvalidEvent", _on_dobropost_passport)
 register_event_handler("RussianCarrierTrackingEvent", _on_russian_carrier)

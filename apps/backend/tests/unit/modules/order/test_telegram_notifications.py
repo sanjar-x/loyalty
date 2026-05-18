@@ -167,6 +167,31 @@ def _build_notifier(
     return consumer, notifier_stub
 
 
+async def test_on_order_paid_sends_message(chat_id: int) -> None:
+    """BE-4 — bridge ``OrderPaidEvent`` → «оплата принята» push.
+
+    Закрывает разрыв «оплатил → тишина 24-72 часа до procurement»,
+    одинаково применим к cart-flow и Buy Now.
+    """
+    order = _build_order()
+    consumer, notifier = _build_notifier(order=order, chat_id=chat_id)
+    await consumer.on_order_paid({"order_id": str(order.id)})
+    assert len(notifier.sent) == 1
+    sent_chat, html = notifier.sent[0]
+    assert sent_chat == chat_id
+    assert order.number.value in html
+    assert "оплачен" in html
+    assert "выкупит" in html  # хук про procurement в течение 24ч
+
+
+async def test_on_order_paid_skip_when_no_telegram_link() -> None:
+    """Customer без Telegram-linked account — silently skip (как у других событий)."""
+    order = _build_order()
+    consumer, notifier = _build_notifier(order=order, chat_id=None)
+    await consumer.on_order_paid({"order_id": str(order.id)})
+    assert notifier.sent == []
+
+
 async def test_on_order_procured_sends_message(chat_id: int) -> None:
     order = _build_order()
     consumer, notifier = _build_notifier(order=order, chat_id=chat_id)
