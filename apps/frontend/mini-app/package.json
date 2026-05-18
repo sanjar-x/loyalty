@@ -17,9 +17,9 @@
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "validate": "npm run typecheck && npm run lint && npm run format:check",
-    "api:gen": "rtk-query-codegen-openapi openapi.config.cjs",
-    "api:types": "openapi-typescript openapi.json -o lib/store/__generated__/schema.d.ts",
-    "api:check": "npm run api:gen && npm run api:types && git diff --exit-code lib/store/__generated__"
+    "api:gen": "rtk-query-codegen-openapi openapi.config.cjs && node scripts/fix-codegen-import.mjs",
+    "api:types": "openapi-typescript openapi.json -o src/shared/api/codegen/schema.d.ts",
+    "api:check": "npm run api:gen && npm run api:types && git diff --exit-code src/shared/api/codegen"
   },
   "engines": {
     "node": ">=24.0.0",
@@ -39,6 +39,7 @@
   },
   "devDependencies": {
     "@rtk-query/codegen-openapi": "^2.2.0",
+    "@telegram-apps/sdk": "3.11.8",
     "@testing-library/jest-dom": "^6.9.1",
     "@testing-library/react": "^16.3.2",
     "@types/node": "25.0.9",

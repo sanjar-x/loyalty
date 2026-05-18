@@ -4,7 +4,6 @@ const path = require('path');
 const root = path.resolve(__dirname, '..');
 const apiSrc = fs.readFileSync(path.join(root, 'lib/store/api.js'), 'utf8');
 
-// api.js'da export qilingan barcha nomlar
 const exportedNames = new Set();
 for (const m of apiSrc.matchAll(/^export\s+(?:const|function)\s+(\w+)/gm)) {
   exportedNames.add(m[1]);
@@ -16,7 +15,6 @@ for (const m of apiSrc.matchAll(/^export\s*\{([^}]+)\}/gm)) {
   });
 }
 
-// Call site'lardan @/lib/store/api importlarini topish
 function walk(dir, out = []) {
   for (const name of fs.readdirSync(dir)) {
     if (name === 'node_modules' || name === '.next' || name === '__generated__') continue;

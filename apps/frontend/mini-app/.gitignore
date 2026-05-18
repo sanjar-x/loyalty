@@ -45,7 +45,4 @@ certificates
 
 # Cloudflared binary downloaded for tunnel testing
 /cloudflared.exe
-
-# Debug screenshots
-/*.png
-!/public/**/*.png
+.claude/scheduled_tasks.lock
