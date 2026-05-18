@@ -15,6 +15,7 @@ from typing import Annotated
 from dishka.integrations.fastapi import DishkaRoute, FromDishka
 from fastapi import APIRouter, Path, Query, status
 
+from src.bootstrap.config import settings
 from src.modules.identity.presentation.dependencies import Auth
 from src.modules.order.application.commands.cancel_order import (
     CancelOrderCommand,
@@ -68,6 +69,7 @@ from src.modules.order.presentation.schemas import (
     OrderTrackingResponse,
     TrackingStepSchema,
 )
+from src.shared.exceptions import ServiceUnavailableError
 
 order_router = APIRouter(
     prefix="/orders",
@@ -161,7 +163,19 @@ async def buy_now_order(
     page, and this endpoint provisions the Order in PENDING (or PAID,
     when ``PAYMENT_AUTO_CAPTURE_ON_AUTHORIZE`` is on) in one round-trip.
     Same FSM, payment, outbox and Telegram fan-out as a cart-flow order.
+
+    Kill-switch (Sprint 1.5 / Q10): controlled by
+    ``settings.BUY_NOW_ENABLED``. When False, returns 503
+    ``BUY_NOW_DISABLED`` so the front-end can show a toast and disable
+    the button. Cart-flow and walk-in continue to work — Buy Now is the
+    only path gated by this flag. Toggle via Railway env var without
+    redeploy.
     """
+    if not settings.BUY_NOW_ENABLED:
+        raise ServiceUnavailableError(
+            message="Buy Now is temporarily disabled",
+            error_code="BUY_NOW_DISABLED",
+        )
     result = await handler.handle(
         CreateBuyNowOrderCommand(
             identity_id=auth.identity_id,

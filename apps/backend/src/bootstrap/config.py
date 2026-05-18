@@ -253,6 +253,17 @@ class Settings(BaseSettings):
     # provider call cannot be auto-captured without a successful charge.
     PAYMENT_AUTO_CAPTURE_ON_AUTHORIZE: bool = True
 
+    # -- Buy Now (ADR-010) --------------------------------------------------
+    # Kill-switch для standalone `/orders/buy-now` endpoint'а. Production
+    # default — True. На любом Railway environment (preview / staging /
+    # prod) можно мгновенно выключить через env var без redeploy: если
+    # выползет регрессия (например, customer'ы массово получают
+    # «оплачено» под `PAYMENT_AUTO_CAPTURE_ON_AUTHORIZE=true` без
+    # реального движения денег), endpoint возвращает 503 с
+    # `BUY_NOW_DISABLED` и frontend заглушает кнопку. Cart-flow и
+    # walk-in продолжают работать. Sprint 1.5 / Q10.
+    BUY_NOW_ENABLED: bool = True
+
     # -- DobroPost (cross-border) ------------------------------------------
     DOBROPOST_BASE_URL: str = "https://api.dobropost.com"
     DOBROPOST_EMAIL: SecretStr = SecretStr("")
