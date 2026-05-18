@@ -30,13 +30,11 @@ from datetime import UTC, date, datetime
 from typing import Any
 
 import pytest
-import structlog
 from sqlalchemy import select, text
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.infrastructure.database.uow import UnitOfWork
 from src.infrastructure.idempotency.repositories import SqlIdempotencyStore
-from src.infrastructure.logging.adapter import StructlogAdapter
 from src.modules.order.application.commands.create_buy_now_order import (
     CreateBuyNowOrderCommand,
     CreateBuyNowOrderHandler,
@@ -274,7 +272,7 @@ async def seed_identity_and_recipient(
                 :phone, :email,
                 :ps, :pn, :pid,
                 :bd, :inn,
-                'PENDING', NULL, false,
+                'pending', NULL, false,
                 0
             )
             """
@@ -302,9 +300,33 @@ async def seed_identity_and_recipient(
 # ---------------------------------------------------------------------------
 
 
+class _NullLogger:
+    """ILogger stub for integration tests.
+
+    Не используем ``structlog.get_logger`` напрямую: e2e-suite через
+    ``create_app()`` инициализирует structlog с
+    ``cache_logger_on_first_use=True`` — после e2e наши
+    ``get_logger("name")`` ловят кэшированный adapter, который при
+    последующем ``.bind(handler=...)`` падает в стандартном
+    ``logging.getLogger`` с ``TypeError: A logger name must be a
+    string`` (cross-test pollution). Чистый stub этой зависимости не
+    имеет.
+    """
+
+    def bind(self, **_kwargs: Any) -> _NullLogger:
+        return self
+
+    def info(self, *_a: Any, **_kw: Any) -> None: ...
+    def warning(self, *_a: Any, **_kw: Any) -> None: ...
+    def error(self, *_a: Any, **_kw: Any) -> None: ...
+    def critical(self, *_a: Any, **_kw: Any) -> None: ...
+    def debug(self, *_a: Any, **_kw: Any) -> None: ...
+    def exception(self, *_a: Any, **_kw: Any) -> None: ...
+
+
 def _build_handler(session: AsyncSession) -> CreateBuyNowOrderHandler:
     """Compose handler из реальных репозиториев + UoW поверх shared session."""
-    logger = StructlogAdapter(structlog.get_logger("test.buy_now_integration"))
+    logger = _NullLogger()
     uow = UnitOfWork(session)
 
     payment_repo = PaymentIntentRepository(session)
@@ -462,7 +484,8 @@ async def test_buy_now_persists_order_payment_outbox_and_idempotency(
             text(
                 """
                 SELECT id, identity_id, status, total_amount, currency,
-                       is_walk_in, payment_intent_id, delivery_amount
+                       is_walk_in, payment_intent_id, delivery_amount,
+                       creation_source
                 FROM orders WHERE id = :id
                 """
             ),
@@ -477,6 +500,12 @@ async def test_buy_now_persists_order_payment_outbox_and_idempotency(
     assert order_row[5] is False, "Buy Now ⇒ is_walk_in must be False (Invariant I3)"
     assert order_row[6] == result.payment_intent_id
     assert order_row[7] == 0, "No delivery quote ⇒ delivery_amount=0"
+    # BE-6: creation_source persists as 'buy_now' through the repo
+    # round-trip. CHECK constraint at DB level forbids drift; this
+    # assertion verifies the handler set it correctly.
+    assert order_row[8] == "buy_now", (
+        f"Buy Now handler must write creation_source='buy_now', got {order_row[8]!r}"
+    )
 
     # (2) payment_intents row in CAPTURED
     intent_status = await _fetch_payment_intent_status(
@@ -595,7 +624,7 @@ async def test_buy_now_rejects_recipient_of_another_customer(
                 :phone, :email,
                 :ps, :pn, :pid,
                 :bd, :inn,
-                'PENDING', NULL, false, 0
+                'pending', NULL, false, 0
             )
             """
         ),

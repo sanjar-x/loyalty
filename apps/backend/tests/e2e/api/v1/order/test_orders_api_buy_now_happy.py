@@ -335,6 +335,51 @@ async def test_buy_now_happy_path_without_auto_capture(
 # ---------------------------------------------------------------------------
 
 
+async def test_buy_now_returns_503_when_disabled_via_flag(
+    monkeypatch: pytest.MonkeyPatch,
+    authenticated_client: AsyncClient,
+    buy_now_sku: dict,
+) -> None:
+    """Q10 / Sprint 1.5 — kill-switch ``settings.BUY_NOW_ENABLED=False``
+    превращает endpoint в 503 ``BUY_NOW_DISABLED`` без касания handler'а.
+
+    Дополнительно проверяем, что cart-flow остаётся работающим
+    (косвенно: POST на ``/orders`` без cart_id попадает в handler и
+    возвращает 422/404, не 503). Это гарантирует точечную область
+    флага — Buy Now only.
+    """
+    from src.bootstrap import config as cfg
+
+    monkeypatch.setattr(cfg.settings, "BUY_NOW_ENABLED", False)
+
+    recipient_id = await _create_recipient(authenticated_client)
+    body = _buy_now_body(
+        sku_id=buy_now_sku["sku_id"],
+        recipient_id=recipient_id,
+        idempotency_key=f"buy-now-e2e-disabled-{uuid.uuid4().hex[:8]}",
+    )
+
+    resp = await authenticated_client.post(_BUY_NOW_URL, json=body)
+    assert resp.status_code == 503, resp.text
+    payload = resp.json()
+    assert payload["error"]["code"] == "BUY_NOW_DISABLED"
+
+    # Sanity: cart-flow остаётся доступен — попадает в handler, не
+    # рубится флагом, возвращает 4xx (snapshot не существует — это OK,
+    # главное что НЕ 503/BUY_NOW_DISABLED).
+    cart_resp = await authenticated_client.post(
+        "/api/v1/orders",
+        json={
+            "cartId": str(uuid.uuid4()),
+            "snapshotId": str(uuid.uuid4()),
+            "idempotencyKey": f"cart-flow-not-blocked-{uuid.uuid4().hex[:8]}",
+        },
+    )
+    assert cart_resp.status_code != 503
+    if cart_resp.status_code >= 400:
+        assert cart_resp.json()["error"]["code"] != "BUY_NOW_DISABLED"
+
+
 async def test_buy_now_rejects_recipient_owned_by_other_customer(
     authenticated_client: AsyncClient,
     buy_now_sku: dict,
@@ -380,7 +425,7 @@ async def test_buy_now_rejects_recipient_owned_by_other_customer(
                 :phone, :email,
                 :ps, :pn, :pid,
                 :bd, :inn,
-                'PENDING', NULL, false,
+                'pending', NULL, false,
                 0
             )
             """
@@ -394,8 +439,11 @@ async def test_buy_now_rejects_recipient_owned_by_other_customer(
             "email": "foreign@example.com",
             "ps": _RECIPIENT_PAYLOAD["passportSerial"],
             "pn": _RECIPIENT_PAYLOAD["passportNumber"],
-            "pid": _RECIPIENT_PAYLOAD["passportIssueDate"],
-            "bd": _RECIPIENT_PAYLOAD["birthDate"],
+            # asyncpg требует ``datetime.date`` для колонок DATE — JSON
+            # сериализованный isoformat не катит. Используем
+            # date.fromisoformat для конвертации обратно.
+            "pid": date.fromisoformat(_RECIPIENT_PAYLOAD["passportIssueDate"]),
+            "bd": date.fromisoformat(_RECIPIENT_PAYLOAD["birthDate"]),
             "inn": _RECIPIENT_PAYLOAD["inn"],
         },
     )
