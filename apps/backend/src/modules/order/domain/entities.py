@@ -57,6 +57,7 @@ from src.modules.order.domain.value_objects import (
     HoldReason,
     IncomingDeclaration,
     OfflinePaymentReceipt,
+    OrderCreationSource,
     OrderNumber,
     OrderStatus,
     PickupPointPreference,
@@ -198,6 +199,11 @@ class Order(AggregateRoot, StateMachineMixin[OrderStatus]):
     # consumers and queries use to branch on walk-in vs PSP-paid orders
     # (e.g. forbidding ``refresh_recipient_snapshot`` for walk-in).
     is_walk_in: bool = False
+    # BE-6 / Sprint 1.5 — Order.creation_source discriminator (see
+    # ADR-010 §I3). Default keeps backward-compat: legacy aggregates
+    # constructed without the kwarg are treated as CART_CHECKOUT.
+    # ``Order.create*`` factories pass it explicitly.
+    creation_source: OrderCreationSource = OrderCreationSource.CART_CHECKOUT
     _items: list[OrderItem] = field(factory=list, alias="items")
 
     # ---------------------------------------------------------------------------
@@ -223,6 +229,18 @@ class Order(AggregateRoot, StateMachineMixin[OrderStatus]):
 
     def __attrs_post_init__(self) -> None:
         super().__attrs_post_init__()
+        # ADR-010 §I3 (BE-6) — Order.creation_source ⇔ Order.is_walk_in
+        # consistency. WALK_IN aggregates MUST have is_walk_in=True;
+        # BUY_NOW / CART_CHECKOUT MUST have is_walk_in=False. Mismatch
+        # at construction means a handler / repo mapper drifted —
+        # raise loudly instead of silently creating an inconsistent row.
+        if (self.creation_source is OrderCreationSource.WALK_IN) != self.is_walk_in:
+            raise ValueError(
+                f"Order creation_source/is_walk_in mismatch: "
+                f"creation_source={self.creation_source.value}, "
+                f"is_walk_in={self.is_walk_in}. "
+                "Invariant: WALK_IN ⇔ is_walk_in=True."
+            )
         object.__setattr__(self, "_Order__initialized", True)
 
     @property
@@ -252,6 +270,7 @@ class Order(AggregateRoot, StateMachineMixin[OrderStatus]):
         cny_rate_at_checkout: Decimal | None = None,
         delivery_quote_id: uuid.UUID | None = None,
         delivery_amount: int = 0,
+        creation_source: OrderCreationSource = OrderCreationSource.CART_CHECKOUT,
     ) -> Order:
         if not items:
             raise OrderEmptyError()
@@ -289,6 +308,7 @@ class Order(AggregateRoot, StateMachineMixin[OrderStatus]):
             version=0,
             delivery_quote_id=delivery_quote_id,
             delivery_amount=delivery_amount,
+            creation_source=creation_source,
             items=list(items),
         )
         order.add_domain_event(
@@ -373,6 +393,7 @@ class Order(AggregateRoot, StateMachineMixin[OrderStatus]):
             delivery_quote_id=None,
             delivery_amount=delivery_amount,
             is_walk_in=True,
+            creation_source=OrderCreationSource.WALK_IN,
             items=list(items),
         )
         order.add_domain_event(

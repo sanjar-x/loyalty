@@ -36,6 +36,14 @@ class OrderModel(Base):
     __tablename__ = "orders"
     __table_args__ = (
         CheckConstraint(f"status IN ({VALID_STATUSES})", name="ck_orders_valid_status"),
+        CheckConstraint(
+            "creation_source IN ('cart_checkout','buy_now','walk_in')",
+            name="ck_orders_valid_creation_source",
+        ),
+        CheckConstraint(
+            "(creation_source = 'walk_in') = is_walk_in",
+            name="ck_orders_walk_in_source_consistent",
+        ),
         CheckConstraint("total_amount >= 0", name="ck_orders_total_nonnegative"),
         CheckConstraint(
             "delivery_amount >= 0", name="ck_orders_delivery_amount_nonnegative"
@@ -149,6 +157,18 @@ class OrderModel(Base):
     # queries branch on this column rather than re-deriving from heuristics.
     is_walk_in: Mapped[bool] = mapped_column(
         Boolean, nullable=False, server_default=sa_text("false"), index=True
+    )
+    # BE-6 / Sprint 1.5 (2026-05-19) — Order.creation_source
+    # discriminator (cart_checkout | buy_now | walk_in). Written by the
+    # creating handler from the domain ``OrderCreationSource`` enum.
+    # ADR-010 §I3: WALK_IN ⇔ is_walk_in=TRUE (enforced at aggregate
+    # construction). Indexed for admin BI («Buy Now conversion rate»).
+    creation_source: Mapped[str] = mapped_column(
+        String(32),
+        nullable=False,
+        server_default=sa_text("'cart_checkout'"),
+        index=True,
+        comment="Order entry-point: cart_checkout | buy_now | walk_in",
     )
     created_at: Mapped[datetime] = mapped_column(
         TIMESTAMP(timezone=True), server_default=func.now()

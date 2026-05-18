@@ -28,7 +28,7 @@ async def _seed_order(session: AsyncSession, order_id: uuid.UUID) -> None:
                 recipient_passport_serial, recipient_passport_number,
                 recipient_passport_issue_date, recipient_birth_date,
                 recipient_inn,
-                version, created_at, updated_at
+                version, creation_source, created_at, updated_at
             ) VALUES (
                 :id, :ident, :cart, 'pending', 1000, 'RUB',
                 'cdek', 'pp-1',
@@ -37,7 +37,7 @@ async def _seed_order(session: AsyncSession, order_id: uuid.UUID) -> None:
                 '1234', '567890',
                 DATE '2015-05-22', DATE '1990-01-01',
                 '500100732272',
-                0, NOW(), NOW()
+                0, 'cart_checkout', NOW(), NOW()
             )
             """
         ),

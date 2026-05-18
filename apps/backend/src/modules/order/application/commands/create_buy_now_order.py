@@ -48,7 +48,10 @@ from src.modules.order.domain.interfaces import (
     IRecipientLookup,
 )
 from src.modules.order.domain.recipient_snapshot import RecipientSnapshot
-from src.modules.order.domain.value_objects import PickupPointPreference
+from src.modules.order.domain.value_objects import (
+    OrderCreationSource,
+    PickupPointPreference,
+)
 from src.shared.domain.supplier_type import SupplierType
 from src.shared.exceptions import UnprocessableEntityError
 from src.shared.interfaces.idempotency import IIdempotencyStore
@@ -239,6 +242,10 @@ class CreateBuyNowOrderHandler:
                 recipient_snapshot=recipient_snapshot,
                 delivery_quote_id=delivery_quote_id,
                 delivery_amount=delivery_amount,
+                # BE-6 — discriminate Buy Now from cart-flow for
+                # analytics. ADR-010 §I3 invariant: must be BUY_NOW
+                # iff is_walk_in=False on this path (always True here).
+                creation_source=OrderCreationSource.BUY_NOW,
             )
             order = await self._order_repo.add(order)
             await record_history(

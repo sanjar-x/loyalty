@@ -21,6 +21,7 @@ from src.modules.order.domain.value_objects import (
     CancellationReason,
     HoldReason,
     IncomingDeclaration,
+    OrderCreationSource,
     OrderStatus,
     PickupCarrier,
     PickupPointPreference,
@@ -85,6 +86,7 @@ class OrderRepository(IOrderRepository):
             delivery_quote_id=order.delivery_quote_id,
             delivery_amount=order.delivery_amount,
             is_walk_in=order.is_walk_in,
+            creation_source=order.creation_source.value,
             created_at=order.created_at,
             updated_at=order.updated_at,
         )
@@ -356,6 +358,7 @@ def _to_domain(row: OrderModel) -> Order:
         delivery_quote_id=row.delivery_quote_id,
         delivery_amount=row.delivery_amount,
         is_walk_in=row.is_walk_in,
+        creation_source=OrderCreationSource(row.creation_source),
         items=items,
     )
 

@@ -34,6 +34,7 @@ from src.modules.order.domain.interfaces import (
     RecipientLookupResult,
 )
 from src.modules.order.domain.value_objects import (
+    OrderCreationSource,
     OrderStatus,
     PickupCarrier,
     PickupPointPreference,
@@ -340,6 +341,8 @@ async def test_happy_path_creates_paid_order(monkeypatch) -> None:
     order = repo.orders[result.order_id]
     assert order.status is OrderStatus.PAID
     assert order.is_walk_in is False
+    # BE-6 / ADR-010 §I3 — Buy Now handler stamps creation_source.
+    assert order.creation_source is OrderCreationSource.BUY_NOW
     assert order.identity_id == identity_id
     assert order.total_amount == 10000  # 5000 * 2
     assert order.delivery_amount == 0

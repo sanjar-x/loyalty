@@ -16,6 +16,7 @@ from src.modules.order.application.queries.read_models import (
 )
 from src.modules.order.domain.exceptions import OrderNotFoundError
 from src.modules.order.domain.value_objects import (
+    OrderCreationSource,
     OrderNumber,
     OrderStatus,
     to_customer_facing,
@@ -124,6 +125,10 @@ class AdminGetOrderHandler:
 @dataclass(frozen=True)
 class AdminListOrdersQuery:
     statuses: list[OrderStatus] | None = None
+    # BE-6 — admin может фильтровать по entry-point: cart_checkout /
+    # buy_now / walk_in (или any комбинация). ``None`` = все источники
+    # (backward-compat: legacy admin UI без фильтра видит весь список).
+    creation_sources: list[OrderCreationSource] | None = None
     limit: int = 50
     cursor: datetime | None = None
 
@@ -142,6 +147,12 @@ class AdminListOrdersHandler:
         )
         if query.statuses:
             stmt = stmt.where(OrderModel.status.in_([s.value for s in query.statuses]))
+        if query.creation_sources:
+            stmt = stmt.where(
+                OrderModel.creation_source.in_(
+                    [s.value for s in query.creation_sources]
+                )
+            )
         if query.cursor is not None:
             stmt = stmt.where(OrderModel.created_at < query.cursor)
         rows = list((await self._session.execute(stmt)).scalars().all())

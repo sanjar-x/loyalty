@@ -18,6 +18,33 @@ from attrs import frozen
 # ---------------------------------------------------------------------------
 
 
+class OrderCreationSource(enum.StrEnum):
+    """Discriminator that records which entry-point created the Order
+    aggregate (BE-6 / Sprint 1.5 / 2026-05-19).
+
+    Members are written by handler at construction time and never
+    mutated. Drives analytics («Buy Now conversion vs cart-flow
+    conversion») and admin-side filters; downstream FSM transitions
+    do NOT branch on this — they are uniform across all sources.
+
+    Members:
+        CART_CHECKOUT: Standard customer flow via cart freeze →
+            ``POST /api/v1/orders``.
+        BUY_NOW: Express checkout via ``POST /api/v1/orders/buy-now``
+            (ADR-010). Always `is_walk_in=False`.
+        WALK_IN: Admin-created offline order via
+            ``POST /api/v1/admin/orders``. Always `is_walk_in=True`.
+
+    Invariant (Order.create / ADR-010 §I3): ``creation_source ==
+    WALK_IN ⇔ is_walk_in == True``. Mismatch → ``ValueError`` at
+    aggregate construction.
+    """
+
+    CART_CHECKOUT = "cart_checkout"
+    BUY_NOW = "buy_now"
+    WALK_IN = "walk_in"
+
+
 class OrderStatus(enum.StrEnum):
     """Loyality order lifecycle states (14 values).
 

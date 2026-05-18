@@ -9818,6 +9818,22 @@
               "format": "uuid",
               "title": "Variantid"
             }
+          },
+          {
+            "name": "If-Match",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "If-Match"
+            }
           }
         ],
         "requestBody": {
@@ -17647,7 +17663,7 @@
           "Orders"
         ],
         "summary": "Buy Now Order",
-        "description": "Create an order directly from a single SKU (no cart).\n\nExpress checkout: front-end collects sku + quantity + recipient +\npickup + delivery quote in one mini-checkout sheet on the product\npage, and this endpoint provisions the Order in PENDING (or PAID,\nwhen ``PAYMENT_AUTO_CAPTURE_ON_AUTHORIZE`` is on) in one round-trip.\nSame FSM, payment, outbox and Telegram fan-out as a cart-flow order.",
+        "description": "Create an order directly from a single SKU (no cart).\n\nExpress checkout: front-end collects sku + quantity + recipient +\npickup + delivery quote in one mini-checkout sheet on the product\npage, and this endpoint provisions the Order in PENDING (or PAID,\nwhen ``PAYMENT_AUTO_CAPTURE_ON_AUTHORIZE`` is on) in one round-trip.\nSame FSM, payment, outbox and Telegram fan-out as a cart-flow order.\n\nKill-switch (Sprint 1.5 / Q10): controlled by\n``settings.BUY_NOW_ENABLED``. When False, returns 503\n``BUY_NOW_DISABLED`` so the front-end can show a toast and disable\nthe button. Cart-flow and walk-in continue to work — Buy Now is the\nonly path gated by this flag. Toggle via Railway env var without\nredeploy.",
         "operationId": "buy_now_order_api_v1_orders_buy_now_post",
         "requestBody": {
           "content": {
@@ -29700,6 +29716,19 @@
               }
             ],
             "title": "Supplierid"
+          },
+          "sourceUrl": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 1024,
+                "pattern": "^https?://"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Sourceurl"
           },
           "countryOfOrigin": {
             "anyOf": [

@@ -184,18 +184,49 @@ saga / payload contract (`POST /orders/buy-now-with-new-recipient`),
 `test_orders_api.py::test_buy_now_with_missing_sku_returns_4xx`
 (recipient-422 surface'ится той же дорогой).
 
-### I3 — `is_walk_in=False` for Buy Now orders
+### I3 — `is_walk_in=False` для Buy Now + `creation_source = BUY_NOW`
 
-`CreateBuyNowOrderHandler` использует `Order.create(...)` (не
+`CreateBuyNowOrderHandler` использует `Order.create(...)` с явным
+`creation_source=OrderCreationSource.BUY_NOW` (не
 `Order.create_walk_in`). Это означает:
 
 - `Order.is_walk_in == False`;
+- `Order.creation_source == OrderCreationSource.BUY_NOW` (BE-6 /
+  Sprint 1.5, 2026-05-19);
 - `refresh_recipient_snapshot` команда работает (customer владеет
   Recipient row);
 - `mark_paid_offline` НЕ применима (Buy Now всегда через
   PaymentIntent, даже под skip-payment short-circuit);
 - `cart_id` — phantom UUID4 (soft link, нужен для NOT NULL ограничения
   колонки; не указывает на реальный cart).
+
+**Cross-validation invariant (BE-6).** Order aggregate в
+`__attrs_post_init__` проверяет:
+
+```text
+creation_source == WALK_IN          ⇔  is_walk_in == True
+creation_source ∈ {CART_CHECKOUT, BUY_NOW}  ⇔  is_walk_in == False
+```
+
+Нарушение → `ValueError` на конструкции (handler ИЛИ repo mapper
+drift). Дополнительно DB enforces тот же invariant через CHECK
+constraint ``ck_orders_walk_in_source_consistent`` (миграция
+`19_0020_00_124554f5bdf2_..._BE_6.py`). Defence-in-depth: domain
+catches при тестах, DB catches при out-of-band SQL fixup.
+
+Это закрывает gap **BE-6**: до Sprint 1.5 нельзя было отличить Buy
+Now-order от cart-flow-order в analytics без heuristics поверх
+`idempotency_keys.scope`. Сейчас admin BI / list-endpoint фильтрует
+`AdminListOrdersQuery.creation_sources=[BUY_NOW]` напрямую.
+
+**Тесты:**
+
+- Domain unit: `tests/unit/modules/order/test_buy_now_handler.py`
+  (`test_two_buy_now_calls_produce_distinct_phantom_cart_ids` плюс
+  весь happy-path косвенно через `Order.create`).
+- DB-уровень:
+  `tests/integration/modules/order/test_buy_now_handler_integration.py::test_buy_now_persists_order_payment_outbox_and_idempotency`
+  читает `orders.creation_source` из DB через ORM.
 
 ### I4 — Использовать `resolve_delivery_quote` (общий helper)
 
