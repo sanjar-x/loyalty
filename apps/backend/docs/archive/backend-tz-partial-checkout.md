@@ -1,16 +1,31 @@
 ---
-tags: [project/loyality, backend, api, checkout, cart, tz]
+tags: [project/loyality, backend, api, checkout, cart, tz, archived]
 type: tz
 date: 2026-04-29
-status: proposal
+status: archived
 audience: backend
+superseded_by: "[[ADR-010-buy-now-standalone-endpoint]] (2026-05-18)"
 related:
   - "[[SPEC - Frontend Integration Guide]]"
   - "[[BRD Checkout]]"
   - "[[Loyality TRD]]"
 ---
 
-# TZ — Partial cart checkout (Buy-Now flow)
+> [!warning] ARCHIVED — 2026-05-18.
+> Этот TZ описывал альтернативный архитектурный подход к Buy Now flow
+> (расширение `POST /cart/checkout` параметром `selectedSkuIds`).
+> **Не был реализован.** Команда выбрала standalone endpoint
+> `POST /api/v1/orders/buy-now`, полностью минующий корзину.
+> Решение и сравнение с этим TZ зафиксированы в
+> **[[ADR-010-buy-now-standalone-endpoint]]**.
+>
+> Документ сохранён в archive для исторического контекста и для
+> возможного будущего use-case «выбор подмножества в /trash-screen»
+> (см. секцию «Related decisions» в ADR-010 — этот scenario не
+> покрывается standalone-endpoint решением, при необходимости вернёмся
+> к идее `selectedSkuIds` в узком scope).
+
+# TZ — Partial cart checkout (Buy-Now flow) [ARCHIVED]
 
 > **Назначение.** Описывает изменения публичного контракта `Cart Checkout`,
 > необходимые для поддержки покупки **подмножества** товаров из корзины
