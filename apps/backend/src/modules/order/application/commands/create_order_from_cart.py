@@ -30,9 +30,13 @@ from src.modules.order.domain.interfaces import (
     IDeliveryQuoteLookup,
     IOrderRepository,
     IOrderStateHistoryWriter,
+    IPassportLookup,
     IRecipientLookup,
 )
-from src.modules.order.domain.recipient_snapshot import RecipientSnapshot
+from src.modules.order.domain.recipient_snapshot import (
+    PassportSnapshot,
+    RecipientSnapshot,
+)
 from src.shared.exceptions import UnprocessableEntityError
 from src.shared.interfaces.idempotency import IIdempotencyStore
 from src.shared.interfaces.logger import ILogger
@@ -57,6 +61,10 @@ class CreateOrderFromCartCommand:
     # checkout-quote step keep working — they ship an order without a
     # priced shipping line.
     delivery_quote_id: uuid.UUID | None = None
+    # ADR-011 / Sprint 1.5 Part 2 — explicit passport selection at
+    # cart-checkout. Same semantics as Buy Now: required at handler
+    # level when any cart item is CROSS_BORDER, optional otherwise.
+    passport_id: uuid.UUID | None = None
 
 
 @dataclass(frozen=True)
@@ -81,6 +89,7 @@ class CreateOrderFromCartHandler:
         order_repo: IOrderRepository,
         snapshot_reader: ICartSnapshotReader,
         recipient_lookup: IRecipientLookup,
+        passport_lookup: IPassportLookup,
         delivery_quote_lookup: IDeliveryQuoteLookup,
         idempotency_store: IIdempotencyStore,
         payment_gateway: IPaymentGateway,
@@ -91,6 +100,7 @@ class CreateOrderFromCartHandler:
         self._order_repo = order_repo
         self._snapshots = snapshot_reader
         self._recipient_lookup = recipient_lookup
+        self._passport_lookup = passport_lookup
         self._delivery_quote_lookup = delivery_quote_lookup
         self._idem = idempotency_store
         self._gateway = payment_gateway
@@ -155,12 +165,40 @@ class CreateOrderFromCartHandler:
                 full_name_lat=recipient.full_name_lat,
                 phone=recipient.phone,
                 email=recipient.email,
-                passport_serial=recipient.passport_serial,
-                passport_number=recipient.passport_number,
-                passport_issue_date=recipient.passport_issue_date,
-                birth_date=recipient.birth_date,
-                inn=recipient.inn,
             )
+
+            # ADR-011 — passport lookup + ownership check (same pattern
+            # as Buy Now handler). Optional; Order.create invariant
+            # raises 422 PASSPORT_REQUIRED_FOR_CROSS_BORDER when the
+            # cart has CROSS_BORDER items but no passport was provided.
+            passport_snapshot: PassportSnapshot | None = None
+            passport_id: uuid.UUID | None = None
+            if command.passport_id is not None:
+                passport = await self._passport_lookup.get(command.passport_id)
+                if passport is None or passport.is_archived:
+                    raise UnprocessableEntityError(
+                        message="Passport not found or archived",
+                        error_code="ORDER_PASSPORT_INVALID",
+                        details={"passport_id": str(command.passport_id)},
+                    )
+                if passport.identity_id != command.identity_id:
+                    raise UnprocessableEntityError(
+                        message="Passport does not belong to this customer",
+                        error_code="ORDER_PASSPORT_OWNERSHIP_MISMATCH",
+                        details={"passport_id": str(command.passport_id)},
+                    )
+                passport_snapshot = PassportSnapshot(
+                    passport_id=str(passport.passport_id),
+                    full_name_ru=passport.full_name_ru,
+                    full_name_lat=passport.full_name_lat,
+                    passport_serial=passport.passport_serial,
+                    passport_number=passport.passport_number,
+                    passport_issue_date=passport.passport_issue_date,
+                    birth_date=passport.birth_date,
+                    inn=passport.inn,
+                    validation_status=passport.validation_status,
+                )
+                passport_id = passport.passport_id
 
             items = [
                 OrderItem(
@@ -193,6 +231,8 @@ class CreateOrderFromCartHandler:
                 cny_rate_at_checkout=snapshot.cny_rate_at_checkout,
                 delivery_quote_id=delivery_quote_id,
                 delivery_amount=delivery_amount,
+                passport_id=passport_id,
+                passport_snapshot=passport_snapshot,
             )
             # Brand-new aggregate: history pre-commit status is None — the
             # OrderCreatedEvent is the first transition.

@@ -13,7 +13,7 @@ Covers:
 from __future__ import annotations
 
 import uuid
-from datetime import UTC, date, datetime, timedelta
+from datetime import UTC, datetime, timedelta
 from typing import Any
 
 import pytest
@@ -206,11 +206,6 @@ def _recipient() -> InlineRecipientInput:
         full_name_lat="Ivan Ivanov",
         phone="+79108897762",
         email="ivan@example.com",
-        passport_serial="1234",
-        passport_number="567890",
-        passport_issue_date=date(2015, 5, 22),
-        birth_date=date(1990, 1, 1),
-        inn="500100732272",
     )
 
 
@@ -230,6 +225,13 @@ def _payment() -> OfflinePaymentInput:
     )
 
 
+class _FakePassportLookup:
+    """No passport attached by default — walk-in tests use LOCAL items."""
+
+    async def get(self, passport_id: uuid.UUID):
+        return None
+
+
 def _build_handler(snapshots: dict[uuid.UUID, CatalogSkuSnapshot]) -> tuple:
     repo = _FakeOrderRepo()
     reader = _FakeSkuReader(snapshots)
@@ -243,6 +245,7 @@ def _build_handler(snapshots: dict[uuid.UUID, CatalogSkuSnapshot]) -> tuple:
         sku_reader=reader,  # ty:ignore[invalid-argument-type]
         identity_provisioner=provisioner,  # ty:ignore[invalid-argument-type]
         override_writer=audit,  # ty:ignore[invalid-argument-type]
+        passport_lookup=_FakePassportLookup(),  # ty:ignore[invalid-argument-type]
         idempotency_store=idem,  # ty:ignore[invalid-argument-type]
         history_writer=history,  # ty:ignore[invalid-argument-type]
         uow=uow,  # ty:ignore[invalid-argument-type]

@@ -15,7 +15,7 @@ Sprint 1.5 / 2026-05-19.
 from __future__ import annotations
 
 import uuid
-from datetime import UTC, date, datetime
+from datetime import UTC, datetime
 
 import pytest
 
@@ -41,7 +41,7 @@ def _item() -> OrderItem:
         variant_id=uuid.uuid4(),
         product_name="x",
         variant_label=None,
-        supplier_type=SupplierType.CROSS_BORDER,
+        supplier_type=SupplierType.LOCAL,
         quantity=1,
         unit_price_amount=1000,
         currency="RUB",
@@ -55,11 +55,6 @@ def _snapshot() -> RecipientSnapshot:
         full_name_lat="x",
         phone="+79108897762",
         email="x@example.com",
-        passport_serial="1234",
-        passport_number="567890",
-        passport_issue_date=date(2015, 1, 1),
-        birth_date=date(1990, 1, 1),
-        inn="500100732272",
     )
 
 

@@ -39,10 +39,5 @@ class RecipientLookupAdapter(IRecipientLookup):
             full_name_lat=row.full_name_lat,
             phone=row.phone,
             email=row.email,
-            passport_serial=row.passport_serial,
-            passport_number=row.passport_number,
-            passport_issue_date=row.passport_issue_date,
-            birth_date=row.birth_date,
-            inn=row.inn,
             is_archived=row.is_archived,
         )

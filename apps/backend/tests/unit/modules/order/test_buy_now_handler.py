@@ -31,6 +31,7 @@ from src.modules.order.domain.entities import Order
 from src.modules.order.domain.exceptions import IdempotencyKeyConflictError
 from src.modules.order.domain.interfaces import (
     DeliveryQuoteLookupResult,
+    PassportLookupResult,
     RecipientLookupResult,
 )
 from src.modules.order.domain.value_objects import (
@@ -83,6 +84,14 @@ class _FakeRecipientLookup:
 
     async def get(self, recipient_id: uuid.UUID) -> RecipientLookupResult | None:
         return self._records.get(recipient_id)
+
+
+class _FakePassportLookup:
+    def __init__(self, records: dict[uuid.UUID, PassportLookupResult]) -> None:
+        self._records = records
+
+    async def get(self, passport_id: uuid.UUID) -> PassportLookupResult | None:
+        return self._records.get(passport_id)
 
 
 class _FakeDeliveryQuoteLookup:
@@ -232,11 +241,24 @@ def _recipient(
         full_name_lat="Ivan Ivanov",
         phone="+79108897762",
         email="ivan@example.com",
+        is_archived=is_archived,
+    )
+
+
+def _passport(
+    *, identity_id: uuid.UUID, is_archived: bool = False
+) -> PassportLookupResult:
+    return PassportLookupResult(
+        passport_id=uuid.uuid4(),
+        identity_id=identity_id,
+        full_name_ru="Иван Иванов",
+        full_name_lat="Ivan Ivanov",
         passport_serial="1234",
         passport_number="567890",
         passport_issue_date=date(2015, 5, 22),
         birth_date=date(1990, 1, 1),
         inn="500100732272",
+        validation_status="pending",
         is_archived=is_archived,
     )
 
@@ -261,12 +283,16 @@ def _build_handler(
     *,
     sku_snapshots: dict[uuid.UUID, CatalogSkuSnapshot] | None = None,
     recipient: RecipientLookupResult | None = None,
+    passport: PassportLookupResult | None = None,
     quote: DeliveryQuoteLookupResult | None = None,
 ) -> tuple:
     repo = _FakeOrderRepo()
     reader = _FakeSkuReader(sku_snapshots or {})
     recipients = _FakeRecipientLookup(
         {recipient.recipient_id: recipient} if recipient else {}
+    )
+    passports = _FakePassportLookup(
+        {passport.passport_id: passport} if passport else {}
     )
     quotes = _FakeDeliveryQuoteLookup({quote.quote_id: quote} if quote else {})
     payment = _FakePaymentGateway()
@@ -277,6 +303,7 @@ def _build_handler(
         order_repo=repo,  # ty:ignore[invalid-argument-type]
         sku_reader=reader,  # ty:ignore[invalid-argument-type]
         recipient_lookup=recipients,  # ty:ignore[invalid-argument-type]
+        passport_lookup=passports,  # ty:ignore[invalid-argument-type]
         delivery_quote_lookup=quotes,  # ty:ignore[invalid-argument-type]
         idempotency_store=idem,  # ty:ignore[invalid-argument-type]
         payment_gateway=payment,  # ty:ignore[invalid-argument-type]

@@ -10,7 +10,7 @@ Covers:
 """
 
 import uuid
-from datetime import UTC, date, datetime
+from datetime import UTC, datetime
 
 import pytest
 
@@ -66,11 +66,6 @@ def _recipient_snapshot() -> RecipientSnapshot:
         full_name_lat="Ivan Ivanov",
         phone="+79108897762",
         email="ivan@example.com",
-        passport_serial="1234",
-        passport_number="567890",
-        passport_issue_date=date(2015, 5, 22),
-        birth_date=date(1990, 1, 1),
-        inn="500100732272",
     )
 
 

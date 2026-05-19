@@ -4,7 +4,7 @@ Reference: backend/docs/Order/Research - Order (2) State Machine FSM.md §15.
 """
 
 import uuid
-from datetime import UTC, date, datetime, timedelta
+from datetime import UTC, datetime, timedelta
 
 import pytest
 
@@ -33,6 +33,7 @@ from src.modules.order.domain.value_objects import (
     PickupPointPreference,
 )
 from src.shared.domain.supplier_type import SupplierType
+from tests.factories.passport_factories import make_passport_snapshot
 
 pytestmark = pytest.mark.unit
 
@@ -63,15 +64,11 @@ def _recipient_snapshot() -> RecipientSnapshot:
         full_name_lat="Ivan Ivanov",
         phone="+79108897762",
         email="ivan@example.com",
-        passport_serial="1234",
-        passport_number="567890",
-        passport_issue_date=date(2015, 5, 22),
-        birth_date=date(1990, 1, 1),
-        inn="500100732272",
     )
 
 
 def _order(items: list[OrderItem] | None = None) -> Order:
+    snap = make_passport_snapshot()
     return Order.create(
         identity_id=uuid.uuid4(),
         cart_id=uuid.uuid4(),
@@ -79,6 +76,8 @@ def _order(items: list[OrderItem] | None = None) -> Order:
         currency="RUB",
         pickup_point=_pickup(),
         recipient_snapshot=_recipient_snapshot(),
+        passport_id=uuid.UUID(snap.passport_id),
+        passport_snapshot=snap,
     )
 
 
@@ -158,6 +157,7 @@ class TestCreate:
     def test_with_delivery_amount_included_in_total(self) -> None:
         """Quote priced: total = items_total + delivery_amount; items_total mirrors items only."""
         quote_id = uuid.uuid4()
+        snap = make_passport_snapshot()
         order = Order.create(
             identity_id=uuid.uuid4(),
             cart_id=uuid.uuid4(),
@@ -167,6 +167,8 @@ class TestCreate:
             recipient_snapshot=_recipient_snapshot(),
             delivery_quote_id=quote_id,
             delivery_amount=32000,  # 320 ₽ shipping
+            passport_id=uuid.UUID(snap.passport_id),
+            passport_snapshot=snap,
         )
         assert order.delivery_amount == 32000
         assert order.delivery_quote_id == quote_id

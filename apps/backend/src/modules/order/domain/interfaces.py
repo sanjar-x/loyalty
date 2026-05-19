@@ -55,7 +55,11 @@ class ICartSnapshotReader(ABC):
 
 @frozen
 class RecipientLookupResult:
-    """Read-only projection of a Recipient — used to fill RecipientSnapshot."""
+    """Read-only projection of a Recipient (shipping coordinates only).
+
+    Post-Sprint-1.5 Part 2 / ADR-011: customs PII moved to the
+    ``passport`` bounded context — read via :class:`IPassportLookup`.
+    """
 
     recipient_id: uuid.UUID
     identity_id: uuid.UUID
@@ -63,11 +67,6 @@ class RecipientLookupResult:
     full_name_lat: str
     phone: str
     email: str
-    passport_serial: str
-    passport_number: str
-    passport_issue_date: date
-    birth_date: date
-    inn: str
     is_archived: bool
 
 
@@ -76,6 +75,47 @@ class IRecipientLookup(ABC):
 
     @abstractmethod
     async def get(self, recipient_id: uuid.UUID) -> RecipientLookupResult | None: ...
+
+
+# ---------------------------------------------------------------------------
+# Passport ACL (order → passport module) — ADR-011 / Sprint 1.5 Part 2
+# ---------------------------------------------------------------------------
+
+
+@frozen
+class PassportLookupResult:
+    """Read-only projection of a Passport — used to populate PassportSnapshot.
+
+    Passport and Recipient are independent bounded contexts (ADR-011).
+    Order reads each through its own ACL adapter; the cross-border
+    invariant in ``Order.create`` combines both at checkout time.
+    """
+
+    passport_id: uuid.UUID
+    identity_id: uuid.UUID
+    full_name_ru: str
+    full_name_lat: str
+    passport_serial: str
+    passport_number: str
+    passport_issue_date: date
+    birth_date: date
+    inn: str
+    validation_status: str
+    is_archived: bool
+
+
+class IPassportLookup(ABC):
+    """ACL port: order reads passport data through this single bridge.
+
+    Ownership boundary is enforced by the handler comparing
+    ``passport.identity_id == auth.identity_id``; same pattern as
+    ``IRecipientLookup``. Implementation lives in
+    ``order/infrastructure/adapters/passport_lookup.py`` (whitelisted
+    in ``ALLOWED_CROSS_MODULE`` as ``("order","passport")``).
+    """
+
+    @abstractmethod
+    async def get(self, passport_id: uuid.UUID) -> PassportLookupResult | None: ...
 
 
 # ---------------------------------------------------------------------------

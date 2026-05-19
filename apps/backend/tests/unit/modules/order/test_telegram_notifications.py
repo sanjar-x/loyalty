@@ -10,7 +10,6 @@ Bot API calls.
 from __future__ import annotations
 
 import uuid
-from datetime import UTC, datetime
 from decimal import Decimal
 from typing import Any
 
@@ -121,12 +120,10 @@ def _build_order(
         full_name_lat="Ivanov Ivan",
         phone="+79001112233",
         email="ivan@example.com",
-        passport_serial="1234",
-        passport_number="567890",
-        passport_issue_date=datetime(2010, 1, 1, tzinfo=UTC).date(),
-        birth_date=datetime(1990, 1, 1, tzinfo=UTC).date(),
-        inn="500100732259",
     )
+    from tests.factories.passport_factories import make_passport_snapshot
+
+    psnap = make_passport_snapshot()
     return Order.create(
         identity_id=identity_id,
         cart_id=uuid.uuid4(),
@@ -135,6 +132,8 @@ def _build_order(
         pickup_point=PickupPointPreference(carrier=carrier, point_id="PVZ-MSK-1"),
         recipient_snapshot=snapshot,
         cny_rate_at_checkout=Decimal("12.50"),
+        passport_id=uuid.UUID(psnap.passport_id),
+        passport_snapshot=psnap,
     )
 
 

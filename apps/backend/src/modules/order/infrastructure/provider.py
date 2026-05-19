@@ -95,6 +95,7 @@ from src.modules.order.domain.interfaces import (
     IDeliveryQuoteLookup,
     IOrderRepository,
     IOrderStateHistoryWriter,
+    IPassportLookup,
     IRecipientLookup,
 )
 from src.modules.order.infrastructure.adapters.cart_snapshot_reader import (
@@ -112,6 +113,9 @@ from src.modules.order.infrastructure.adapters.dobropost_client import (
 from src.modules.order.infrastructure.adapters.dobropost_gateway import (
     DobroPostGatewayReal,
     DobroPostGatewayStub,
+)
+from src.modules.order.infrastructure.adapters.passport_lookup import (
+    PassportLookupAdapter,
 )
 from src.modules.order.infrastructure.adapters.payment_gateway import PaymentGateway
 from src.modules.order.infrastructure.adapters.recipient_lookup import (
@@ -214,6 +218,13 @@ class OrderProvider(Provider):
         RecipientLookupAdapter,
         scope=Scope.REQUEST,
         provides=IRecipientLookup,
+    )
+    # ADR-011 / Sprint 1.5 Part 2 — passport ACL for the cross-border
+    # invariant in Order.create.
+    passport_lookup: CompositeDependencySource = provide(
+        PassportLookupAdapter,
+        scope=Scope.REQUEST,
+        provides=IPassportLookup,
     )
     delivery_quote_lookup: CompositeDependencySource = provide(
         DeliveryQuoteAdapter,

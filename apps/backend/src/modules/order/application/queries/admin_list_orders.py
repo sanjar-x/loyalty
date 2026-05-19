@@ -2,7 +2,7 @@
 
 import uuid
 from dataclasses import dataclass
-from datetime import datetime
+from datetime import date, datetime
 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -12,6 +12,7 @@ from src.modules.order.application.queries.read_models import (
     AdminOrderListPage,
     AdminOrderReadModel,
     OrderItemReadModel,
+    PassportSnapshotReadModel,
     RecipientSnapshotReadModel,
 )
 from src.modules.order.domain.exceptions import OrderNotFoundError
@@ -25,11 +26,10 @@ from src.modules.order.infrastructure.models import OrderItemModel, OrderModel
 
 
 def _to_recipient_snapshot(row: OrderModel) -> RecipientSnapshotReadModel:
-    """Read-projection of the order's frozen customs recipient snapshot.
+    """Read-projection of the order's frozen recipient snapshot.
 
-    Mirrors the columns persisted by ``CreateOrderFromCartHandler`` —
-    pure column-to-field mapping, no joins. Admin-only — never returned
-    via customer-facing read models.
+    Post-ADR-011: shipping coordinates only — customs moved to
+    :func:`_to_passport_snapshot`.
     """
     return RecipientSnapshotReadModel(
         recipient_id=row.recipient_id,
@@ -37,11 +37,30 @@ def _to_recipient_snapshot(row: OrderModel) -> RecipientSnapshotReadModel:
         full_name_lat=row.recipient_full_name_lat,
         phone=row.recipient_phone,
         email=row.recipient_email,
-        passport_serial=row.recipient_passport_serial,
-        passport_number=row.recipient_passport_number,
-        passport_issue_date=row.recipient_passport_issue_date,
-        birth_date=row.recipient_birth_date,
-        inn=row.recipient_inn,
+    )
+
+
+def _to_passport_snapshot(row: OrderModel) -> PassportSnapshotReadModel | None:
+    """Read-projection of the order's frozen passport snapshot (if any).
+
+    Reads the JSONB ``orders.passport_snapshot`` column and converts
+    camelCase wire-keys back into the dataclass fields. Returns
+    ``None`` when the order has no passport attached (LOCAL-only
+    orders without optional customs).
+    """
+    payload: dict | None = row.passport_snapshot
+    if not payload:
+        return None
+    return PassportSnapshotReadModel(
+        passport_id=uuid.UUID(str(payload["passportId"])),
+        full_name_ru=payload["fullNameRu"],
+        full_name_lat=payload["fullNameLat"],
+        passport_serial=payload["passportSerial"],
+        passport_number=payload["passportNumber"],
+        passport_issue_date=date.fromisoformat(payload["passportIssueDate"]),
+        birth_date=date.fromisoformat(payload["birthDate"]),
+        inn=payload["inn"],
+        validation_status=payload["validationStatus"],
     )
 
 

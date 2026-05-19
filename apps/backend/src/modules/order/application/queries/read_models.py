@@ -46,17 +46,11 @@ class CustomerOrderReadModel:
 
 @dataclass(frozen=True)
 class RecipientSnapshotReadModel:
-    """Customs PII captured on the order at checkout — admin-only.
+    """Recipient snapshot — admin-only.
 
-    C5.1 — surfaced on ``AdminOrderReadModel`` so the manager dashboard
-    can display the customs-validation context without a cross-module
-    join into the recipient table. The snapshot is the single source
-    of truth for what was sent to DobroPost; the live ``Recipient``
-    aggregate may have edits since.
-
-    Frontend admin masks ``passport_serial`` / ``passport_number`` /
-    ``inn`` in the UI (last 2/4 digits). Never echoed in customer-
-    facing read models.
+    Post-ADR-011: shipping coordinates only (name/phone/email).
+    Customs (passport/INN/birth_date) moved to
+    :class:`PassportSnapshotReadModel`, see ``AdminOrderReadModel``.
     """
 
     recipient_id: uuid.UUID
@@ -64,11 +58,31 @@ class RecipientSnapshotReadModel:
     full_name_lat: str
     phone: str
     email: str
+
+
+@dataclass(frozen=True)
+class PassportSnapshotReadModel:
+    """Customs PII captured on the order at checkout — admin-only.
+
+    Frozen snapshot of the Passport aggregate as it stood when the
+    order was created. Admin manager dashboard renders this alongside
+    the recipient snapshot; the live ``Passport`` aggregate may have
+    edits since.
+
+    Frontend admin masks ``passport_serial`` / ``passport_number`` /
+    ``inn`` in the UI (last 2/4 digits). Never echoed in customer-
+    facing read models.
+    """
+
+    passport_id: uuid.UUID
+    full_name_ru: str
+    full_name_lat: str
     passport_serial: str
     passport_number: str
     passport_issue_date: date
     birth_date: date
     inn: str
+    validation_status: str
 
 
 @dataclass(frozen=True)
@@ -103,6 +117,7 @@ class AdminOrderReadModel:
     updated_at: datetime
     items: list[OrderItemReadModel] = field(default_factory=list)
     recipient_snapshot: RecipientSnapshotReadModel | None = None
+    passport_snapshot: PassportSnapshotReadModel | None = None
 
 
 @dataclass(frozen=True)

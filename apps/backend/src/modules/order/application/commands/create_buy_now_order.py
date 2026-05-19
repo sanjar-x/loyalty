@@ -45,9 +45,13 @@ from src.modules.order.domain.interfaces import (
     IDeliveryQuoteLookup,
     IOrderRepository,
     IOrderStateHistoryWriter,
+    IPassportLookup,
     IRecipientLookup,
 )
-from src.modules.order.domain.recipient_snapshot import RecipientSnapshot
+from src.modules.order.domain.recipient_snapshot import (
+    PassportSnapshot,
+    RecipientSnapshot,
+)
 from src.modules.order.domain.value_objects import (
     OrderCreationSource,
     PickupPointPreference,
@@ -78,6 +82,12 @@ class CreateBuyNowOrderCommand:
     delivery_quote_id: uuid.UUID | None
     idempotency_key: str
     payment_provider: str = "fake"
+    # ADR-011 / Sprint 1.5 Part 2 — explicit passport selection at
+    # checkout. Required for CROSS_BORDER items (the Order.create
+    # invariant raises ``PassportRequiredForCrossBorderError`` if
+    # absent). Optional for LOCAL-only orders; if supplied, the same
+    # ownership check applies as for recipient_id.
+    passport_id: uuid.UUID | None = None
 
 
 @dataclass(frozen=True)
@@ -100,6 +110,7 @@ class CreateBuyNowOrderHandler:
         order_repo: IOrderRepository,
         sku_reader: ICatalogSkuPriceReader,
         recipient_lookup: IRecipientLookup,
+        passport_lookup: IPassportLookup,
         delivery_quote_lookup: IDeliveryQuoteLookup,
         idempotency_store: IIdempotencyStore,
         payment_gateway: IPaymentGateway,
@@ -110,6 +121,7 @@ class CreateBuyNowOrderHandler:
         self._order_repo = order_repo
         self._sku_reader = sku_reader
         self._recipient_lookup = recipient_lookup
+        self._passport_lookup = passport_lookup
         self._delivery_quote_lookup = delivery_quote_lookup
         self._idem = idempotency_store
         self._gateway = payment_gateway
@@ -196,12 +208,42 @@ class CreateBuyNowOrderHandler:
                 full_name_lat=recipient.full_name_lat,
                 phone=recipient.phone,
                 email=recipient.email,
-                passport_serial=recipient.passport_serial,
-                passport_number=recipient.passport_number,
-                passport_issue_date=recipient.passport_issue_date,
-                birth_date=recipient.birth_date,
-                inn=recipient.inn,
             )
+
+            # 3b) Passport lookup + ownership + archive check (ADR-011 /
+            # Sprint 1.5 Part 2). Optional at this stage — the Order
+            # domain invariant in ``Order.create`` raises 422
+            # PASSPORT_REQUIRED_FOR_CROSS_BORDER if the SKU is
+            # CROSS_BORDER but no passport_snapshot is attached. LOCAL
+            # orders may pass a passport (gift cards, etc.) or omit it.
+            passport_snapshot: PassportSnapshot | None = None
+            passport_id: uuid.UUID | None = None
+            if command.passport_id is not None:
+                passport = await self._passport_lookup.get(command.passport_id)
+                if passport is None or passport.is_archived:
+                    raise UnprocessableEntityError(
+                        message="Passport not found or archived",
+                        error_code="ORDER_PASSPORT_INVALID",
+                        details={"passport_id": str(command.passport_id)},
+                    )
+                if passport.identity_id != command.identity_id:
+                    raise UnprocessableEntityError(
+                        message="Passport does not belong to this customer",
+                        error_code="ORDER_PASSPORT_OWNERSHIP_MISMATCH",
+                        details={"passport_id": str(command.passport_id)},
+                    )
+                passport_snapshot = PassportSnapshot(
+                    passport_id=str(passport.passport_id),
+                    full_name_ru=passport.full_name_ru,
+                    full_name_lat=passport.full_name_lat,
+                    passport_serial=passport.passport_serial,
+                    passport_number=passport.passport_number,
+                    passport_issue_date=passport.passport_issue_date,
+                    birth_date=passport.birth_date,
+                    inn=passport.inn,
+                    validation_status=passport.validation_status,
+                )
+                passport_id = passport.passport_id
 
             # 4) Build one OrderItem.
             item = OrderItem(
@@ -246,6 +288,10 @@ class CreateBuyNowOrderHandler:
                 # analytics. ADR-010 §I3 invariant: must be BUY_NOW
                 # iff is_walk_in=False on this path (always True here).
                 creation_source=OrderCreationSource.BUY_NOW,
+                # ADR-011 — Cross-border invariant runs inside
+                # Order.create; for LOCAL items passport may be None.
+                passport_id=passport_id,
+                passport_snapshot=passport_snapshot,
             )
             order = await self._order_repo.add(order)
             await record_history(

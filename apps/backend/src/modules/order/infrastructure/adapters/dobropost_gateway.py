@@ -25,6 +25,7 @@ import contextlib
 import hashlib
 import random
 import uuid
+from datetime import date
 
 import structlog
 from sqlalchemy import select
@@ -36,7 +37,13 @@ from src.modules.order.application.ports import (
     IDobroPostGateway,
     IDobroPostShipmentMappingRepository,
 )
-from src.modules.order.domain.recipient_snapshot import RecipientSnapshot
+from src.modules.order.domain.exceptions import (
+    PassportRequiredForCrossBorderError,
+)
+from src.modules.order.domain.recipient_snapshot import (
+    PassportSnapshot,
+    RecipientSnapshot,
+)
 from src.modules.order.infrastructure.adapters.dobropost_client import (
     DobroPostHttpClient,
     build_shipment_payload,
@@ -164,16 +171,22 @@ class DobroPostGatewayReal(IDobroPostGateway):
                 pieces=total_pieces,
             )
 
-        snapshot = self._snapshot_from_row(row)
+        recipient = self._recipient_snapshot_from_row(row)
+        passport = self._passport_snapshot_from_row(row)
+        # Cross-border booking without a passport is impossible — the
+        # domain invariant in ``Order.create`` already rejects this at
+        # checkout. Defence-in-depth here for legacy rows / stale data.
+        if passport is None:
+            raise PassportRequiredForCrossBorderError()
         payload = build_shipment_payload(
-            full_name_lat=snapshot.full_name_lat,
-            phone=snapshot.phone,
-            email=snapshot.email,
-            passport_serial=snapshot.passport_serial,
-            passport_number=snapshot.passport_number,
-            passport_issue_date=snapshot.passport_issue_date,
-            birth_date=snapshot.birth_date,
-            inn=snapshot.inn,
+            full_name_lat=recipient.full_name_lat,
+            phone=recipient.phone,
+            email=recipient.email,
+            passport_serial=passport.passport_serial,
+            passport_number=passport.passport_number,
+            passport_issue_date=passport.passport_issue_date,
+            birth_date=passport.birth_date,
+            inn=passport.inn,
             incoming_declaration=incoming_declaration,
             items=items_payload,
             pickup_address="",  # filled by routing engine in a future SPEC
@@ -238,17 +251,20 @@ class DobroPostGatewayReal(IDobroPostGateway):
             )
             return
         row = await self._load_order(order_id)
-        snapshot = self._snapshot_from_row(row)
+        recipient = self._recipient_snapshot_from_row(row)
+        passport = self._passport_snapshot_from_row(row)
+        if passport is None:
+            raise PassportRequiredForCrossBorderError()
         payload = build_update_shipment_payload(
             shipment_id=mapping.dp_shipment_id,
-            full_name_lat=snapshot.full_name_lat,
-            phone=snapshot.phone,
-            email=snapshot.email,
-            passport_serial=snapshot.passport_serial,
-            passport_number=snapshot.passport_number,
-            passport_issue_date=snapshot.passport_issue_date,
-            birth_date=snapshot.birth_date,
-            inn=snapshot.inn,
+            full_name_lat=recipient.full_name_lat,
+            phone=recipient.phone,
+            email=recipient.email,
+            passport_serial=passport.passport_serial,
+            passport_number=passport.passport_number,
+            passport_issue_date=passport.passport_issue_date,
+            birth_date=passport.birth_date,
+            inn=passport.inn,
         )
         await self._client.update_shipment(payload)
         self._logger.info(
@@ -270,16 +286,34 @@ class DobroPostGatewayReal(IDobroPostGateway):
         return (await self._session.execute(stmt)).scalar_one()
 
     @staticmethod
-    def _snapshot_from_row(row: OrderModel) -> RecipientSnapshot:
+    def _recipient_snapshot_from_row(row: OrderModel) -> RecipientSnapshot:
         return RecipientSnapshot(
             recipient_id=str(row.recipient_id),
             full_name_ru=row.recipient_full_name_ru,
             full_name_lat=row.recipient_full_name_lat,
             phone=row.recipient_phone,
             email=row.recipient_email,
-            passport_serial=row.recipient_passport_serial,
-            passport_number=row.recipient_passport_number,
-            passport_issue_date=row.recipient_passport_issue_date,
-            birth_date=row.recipient_birth_date,
-            inn=row.recipient_inn,
+        )
+
+    @staticmethod
+    def _passport_snapshot_from_row(row: OrderModel) -> PassportSnapshot | None:
+        """Parse the JSONB ``orders.passport_snapshot`` column into a VO.
+
+        Returns ``None`` for local-only orders that never captured a
+        passport. Callers in cross-border code paths must convert the
+        ``None`` into :class:`PassportRequiredForCrossBorderError`.
+        """
+        payload = row.passport_snapshot
+        if not payload:
+            return None
+        return PassportSnapshot(
+            passport_id=str(payload["passportId"]),
+            full_name_ru=payload["fullNameRu"],
+            full_name_lat=payload["fullNameLat"],
+            passport_serial=payload["passportSerial"],
+            passport_number=payload["passportNumber"],
+            passport_issue_date=date.fromisoformat(payload["passportIssueDate"]),
+            birth_date=date.fromisoformat(payload["birthDate"]),
+            inn=payload["inn"],
+            validation_status=payload["validationStatus"],
         )

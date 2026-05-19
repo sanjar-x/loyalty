@@ -84,6 +84,7 @@ from src.modules.order.presentation.schemas import (
     HoldOrderRequest,
     OrderItemSchema,
     OrderStateHistoryEntrySchema,
+    PassportSnapshotSchema,
     ProcureOrderRequest,
     RecipientSnapshotSchema,
 )
@@ -106,11 +107,20 @@ def _serialize_admin(model: AdminOrderReadModel) -> AdminOrderSchema:
             full_name_lat=rs.full_name_lat,
             phone=rs.phone,
             email=rs.email,
-            passport_serial=rs.passport_serial,
-            passport_number=rs.passport_number,
-            passport_issue_date=rs.passport_issue_date,
-            birth_date=rs.birth_date,
-            inn=rs.inn,
+        )
+    passport_schema: PassportSnapshotSchema | None = None
+    if model.passport_snapshot is not None:
+        ps = model.passport_snapshot
+        passport_schema = PassportSnapshotSchema(
+            passport_id=ps.passport_id,
+            full_name_ru=ps.full_name_ru,
+            full_name_lat=ps.full_name_lat,
+            passport_serial=ps.passport_serial,
+            passport_number=ps.passport_number,
+            passport_issue_date=ps.passport_issue_date,
+            birth_date=ps.birth_date,
+            inn=ps.inn,
+            validation_status=ps.validation_status,
         )
     return AdminOrderSchema(
         order_id=model.order_id,
@@ -162,6 +172,7 @@ def _serialize_admin(model: AdminOrderReadModel) -> AdminOrderSchema:
             for it in model.items
         ],
         recipient_snapshot=snapshot_schema,
+        passport_snapshot=passport_schema,
     )
 
 
@@ -229,11 +240,6 @@ async def admin_create_walk_in_order(
                 full_name_lat=body.recipient.full_name_lat,
                 phone=body.recipient.phone,
                 email=body.recipient.email,
-                passport_serial=body.recipient.passport_serial,
-                passport_number=body.recipient.passport_number,
-                passport_issue_date=body.recipient.passport_issue_date,
-                birth_date=body.recipient.birth_date,
-                inn=body.recipient.inn,
             ),
             items=tuple(
                 WalkInItemInput(
@@ -257,6 +263,7 @@ async def admin_create_walk_in_order(
             idempotency_key=body.idempotency_key,
             cny_rate_at_checkout=body.cny_rate_at_checkout,
             delivery_amount=body.delivery_amount,
+            passport_id=body.passport_id,
         )
     )
     return AdminCreateWalkInOrderResponse(

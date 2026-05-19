@@ -16,7 +16,12 @@ pytestmark = pytest.mark.integration
 
 
 async def _seed_order(session: AsyncSession, order_id: uuid.UUID) -> None:
-    """Insert a minimal Order row so the FK on the mapping table holds."""
+    """Insert a minimal Order row so the FK on the mapping table holds.
+
+    Post-ADR-011: customs columns no longer live on ``orders``;
+    LOCAL-only order rows can omit the passport entirely (the
+    pair-consistency CHECK accepts NULL/NULL).
+    """
     await session.execute(
         text(
             """
@@ -25,18 +30,12 @@ async def _seed_order(session: AsyncSession, order_id: uuid.UUID) -> None:
                 pickup_carrier, pickup_point_id,
                 recipient_id, recipient_full_name_ru, recipient_full_name_lat,
                 recipient_phone, recipient_email,
-                recipient_passport_serial, recipient_passport_number,
-                recipient_passport_issue_date, recipient_birth_date,
-                recipient_inn,
                 version, creation_source, created_at, updated_at
             ) VALUES (
                 :id, :ident, :cart, 'pending', 1000, 'RUB',
                 'cdek', 'pp-1',
                 :recipient, 'Иван Иванов', 'Ivan Ivanov',
                 '+79108897762', 'a@b.ru',
-                '1234', '567890',
-                DATE '2015-05-22', DATE '1990-01-01',
-                '500100732272',
                 0, 'cart_checkout', NOW(), NOW()
             )
             """

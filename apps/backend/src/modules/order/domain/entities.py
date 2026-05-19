@@ -46,10 +46,14 @@ from src.modules.order.domain.exceptions import (
     OrderHoldStateError,
     OrderInvalidTransitionError,
     OrderItemQuantityError,
+    PassportRequiredForCrossBorderError,
     PickupPointChangeForbiddenError,
     WalkInRefreshRecipientForbiddenError,
 )
-from src.modules.order.domain.recipient_snapshot import RecipientSnapshot
+from src.modules.order.domain.recipient_snapshot import (
+    PassportSnapshot,
+    RecipientSnapshot,
+)
 from src.modules.order.domain.value_objects import (
     PAID_STATUSES,
     TERMINAL_STATUSES,
@@ -204,6 +208,19 @@ class Order(AggregateRoot, StateMachineMixin[OrderStatus]):
     # constructed without the kwarg are treated as CART_CHECKOUT.
     # ``Order.create*`` factories pass it explicitly.
     creation_source: OrderCreationSource = OrderCreationSource.CART_CHECKOUT
+    # Sprint 1.5 Part 2 / ADR-011 — Passport extracted as an independent
+    # bounded context. Order links to the passport-at-checkout time:
+    #
+    # * ``passport_id``: soft FK to ``passports.id`` (``ON DELETE SET NULL``
+    #   so archiving a passport does not lose order history).
+    # * ``passport_snapshot``: frozen customs PII at checkout (separate
+    #   ``__attrs_post_init__`` invariant on PassportSnapshot enforces
+    #   format-level integrity, defence-in-depth vs. the source VOs).
+    #
+    # Both are ``None`` for local-only orders. The Order.create invariant
+    # below enforces that any CROSS_BORDER item ⇒ both fields are set.
+    passport_id: uuid.UUID | None = None
+    passport_snapshot: PassportSnapshot | None = None
     _items: list[OrderItem] = field(factory=list, alias="items")
 
     # ---------------------------------------------------------------------------
@@ -241,6 +258,18 @@ class Order(AggregateRoot, StateMachineMixin[OrderStatus]):
                 f"is_walk_in={self.is_walk_in}. "
                 "Invariant: WALK_IN ⇔ is_walk_in=True."
             )
+        # ADR-011 / Sprint 1.5 Part 2 — passport_id ⇔ passport_snapshot
+        # must travel together. Repo mapper or handler that sets one
+        # without the other indicates a wiring bug; raise loudly so the
+        # DB write is never attempted. The cross-border invariant
+        # itself lives in ``Order.create`` (it needs the items list).
+        if (self.passport_id is None) != (self.passport_snapshot is None):
+            raise ValueError(
+                f"Order passport_id/passport_snapshot mismatch: "
+                f"passport_id={self.passport_id}, "
+                f"passport_snapshot={'set' if self.passport_snapshot else None}. "
+                "Both must be provided together (or both omitted)."
+            )
         object.__setattr__(self, "_Order__initialized", True)
 
     @property
@@ -271,6 +300,8 @@ class Order(AggregateRoot, StateMachineMixin[OrderStatus]):
         delivery_quote_id: uuid.UUID | None = None,
         delivery_amount: int = 0,
         creation_source: OrderCreationSource = OrderCreationSource.CART_CHECKOUT,
+        passport_id: uuid.UUID | None = None,
+        passport_snapshot: PassportSnapshot | None = None,
     ) -> Order:
         if not items:
             raise OrderEmptyError()
@@ -279,6 +310,16 @@ class Order(AggregateRoot, StateMachineMixin[OrderStatus]):
                 raise OrderItemQuantityError(quantity=itm.quantity)
         if delivery_amount < 0:
             raise OrderDeliveryAmountInvalidError(delivery_amount=delivery_amount)
+        # ADR-011 / Sprint 1.5 Part 2 — cross-border invariant.
+        # Any CROSS_BORDER item REQUIRES an attached passport snapshot;
+        # local-only orders are exempt (they skip the customs path).
+        # passport_id ⇔ passport_snapshot pairing is enforced by
+        # ``__attrs_post_init__``.
+        has_cross_border = any(
+            itm.supplier_type is SupplierType.CROSS_BORDER for itm in items
+        )
+        if has_cross_border and passport_snapshot is None:
+            raise PassportRequiredForCrossBorderError()
         items_total = sum(itm.line_total for itm in items)
         total = items_total + delivery_amount
         now = datetime.now(UTC)
@@ -309,6 +350,8 @@ class Order(AggregateRoot, StateMachineMixin[OrderStatus]):
             delivery_quote_id=delivery_quote_id,
             delivery_amount=delivery_amount,
             creation_source=creation_source,
+            passport_id=passport_id,
+            passport_snapshot=passport_snapshot,
             items=list(items),
         )
         order.add_domain_event(
@@ -334,6 +377,8 @@ class Order(AggregateRoot, StateMachineMixin[OrderStatus]):
         recipient_snapshot: RecipientSnapshot,
         cny_rate_at_checkout: Decimal | None = None,
         delivery_amount: int = 0,
+        passport_id: uuid.UUID | None = None,
+        passport_snapshot: PassportSnapshot | None = None,
     ) -> Order:
         """Factory for admin-created walk-in orders.
 
@@ -362,6 +407,14 @@ class Order(AggregateRoot, StateMachineMixin[OrderStatus]):
                 raise OrderItemQuantityError(quantity=itm.quantity)
         if delivery_amount < 0:
             raise OrderDeliveryAmountInvalidError(delivery_amount=delivery_amount)
+        # Same cross-border invariant as the customer factory — walk-in
+        # CROSS_BORDER orders also require a passport (admin must
+        # provide passport_id in the request payload).
+        has_cross_border = any(
+            itm.supplier_type is SupplierType.CROSS_BORDER for itm in items
+        )
+        if has_cross_border and passport_snapshot is None:
+            raise PassportRequiredForCrossBorderError()
         items_total = sum(itm.line_total for itm in items)
         total = items_total + delivery_amount
         now = datetime.now(UTC)
@@ -394,6 +447,8 @@ class Order(AggregateRoot, StateMachineMixin[OrderStatus]):
             delivery_amount=delivery_amount,
             is_walk_in=True,
             creation_source=OrderCreationSource.WALK_IN,
+            passport_id=passport_id,
+            passport_snapshot=passport_snapshot,
             items=list(items),
         )
         order.add_domain_event(
@@ -729,12 +784,19 @@ class Order(AggregateRoot, StateMachineMixin[OrderStatus]):
     # Recipient snapshot refresh (used after PASSPORT_INVALID hold)
     # ---------------------------------------------------------------------------
 
-    def refresh_recipient_snapshot(self, fresh: RecipientSnapshot) -> None:
-        """Replace the recipient snapshot with a freshly captured copy.
+    def refresh_recipient_snapshot(
+        self,
+        fresh: RecipientSnapshot,
+        *,
+        passport_snapshot: PassportSnapshot | None = None,
+    ) -> None:
+        """Replace the recipient (and optionally passport) snapshot with
+        a freshly captured copy.
 
         Used by the customer / manager after correcting passport details
-        on the underlying Recipient — the order can then be resumed from
-        ON_HOLD via ``resume_from_hold`` once DobroPost re-validates.
+        on the underlying :class:`Passport` (ADR-011) or recipient profile
+        — the order can then be resumed from ON_HOLD via
+        ``resume_from_hold`` once DobroPost re-validates.
 
         Refresh is allowed only when the order is in ON_HOLD with
         reason=PASSPORT_INVALID (the only state where stale customs data
@@ -744,6 +806,12 @@ class Order(AggregateRoot, StateMachineMixin[OrderStatus]):
         Recipient row — the self-service refresh flow has nothing to
         re-snapshot from. Admin tooling updates walk-in recipient data
         through a separate admin-only path.
+
+        ``passport_snapshot`` is required when the order has a
+        ``passport_id`` attached; callers must supply the refreshed
+        copy because the customs payload is the typical reason the
+        order entered PASSPORT_INVALID in the first place. For orders
+        without a passport (LOCAL-only) the parameter is ignored.
         """
         if self.is_walk_in:
             raise WalkInRefreshRecipientForbiddenError(order_id=str(self.id))
@@ -753,6 +821,8 @@ class Order(AggregateRoot, StateMachineMixin[OrderStatus]):
         ):
             raise OrderHoldStateError(status=self.status.value)
         self.recipient_snapshot = self.recipient_snapshot.with_updated_data(fresh=fresh)
+        if self.passport_id is not None and passport_snapshot is not None:
+            self.passport_snapshot = passport_snapshot
         self.updated_at = datetime.now(UTC)
 
     def change_pickup_point(self, new: PickupPointPreference) -> None:

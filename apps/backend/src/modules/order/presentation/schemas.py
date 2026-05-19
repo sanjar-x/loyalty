@@ -45,6 +45,14 @@ class CreateOrderRequest(CamelModel):
             "line (legacy clients)."
         ),
     )
+    passport_id: uuid.UUID | None = Field(
+        default=None,
+        description=(
+            "ID of the customs Passport (see /api/v1/passports). "
+            "REQUIRED at handler-level when the cart contains any "
+            "cross-border SKU (ADR-011); optional for local-only carts."
+        ),
+    )
 
 
 class CreateOrderResponse(CamelModel):
@@ -70,14 +78,28 @@ class BuyNowOrderRequest(CamelModel):
     """Express-checkout payload: a single SKU goes straight to Order.
 
     No backing cart row — front-end collects sku/quantity/recipient/
-    pickup/delivery_quote in a one-shot mini-checkout sheet on the
-    product page. Response shape matches :class:`CreateOrderResponse`
-    so the front-end branches once on ``auto_captured``.
+    passport/pickup/delivery_quote in a one-shot mini-checkout sheet
+    on the product page. Response shape matches
+    :class:`CreateOrderResponse` so the front-end branches once on
+    ``auto_captured``.
+
+    Sprint 1.5 Part 2 / ADR-011 — ``passportId`` field added. Required
+    by domain invariant when any item is CROSS_BORDER (handler raises
+    422 ``PASSPORT_REQUIRED_FOR_CROSS_BORDER``); optional otherwise.
+    Wire-level ``Optional`` lets local-only Buy Now flows omit it.
     """
 
     sku_id: uuid.UUID
     quantity: int = Field(ge=1, le=99)
     recipient_id: uuid.UUID
+    passport_id: uuid.UUID | None = Field(
+        default=None,
+        description=(
+            "ID of the customs Passport (see /api/v1/passports). "
+            "REQUIRED at handler-level for cross-border SKUs; "
+            "optional for LOCAL-only orders."
+        ),
+    )
     pickup_carrier: str = Field(max_length=16)
     pickup_point_id: str = Field(max_length=128)
     delivery_quote_id: uuid.UUID | None = Field(
@@ -188,11 +210,10 @@ class HoldOrderRequest(CamelModel):
 
 
 class RecipientSnapshotSchema(CamelModel):
-    """Customs PII frozen on the order at checkout.
+    """Shipping recipient frozen on the order at checkout.
 
-    C5.1 — admin-only. Frontend admin masks ``passportSerial`` /
-    ``passportNumber`` / ``inn`` in the UI (last 2-4 digits). Never
-    surfaced via the customer order endpoint.
+    Post-ADR-011: customs PII moved to :class:`PassportSnapshotSchema`.
+    Admin-only — never surfaced via the customer order endpoint.
     """
 
     recipient_id: uuid.UUID
@@ -200,11 +221,25 @@ class RecipientSnapshotSchema(CamelModel):
     full_name_lat: str
     phone: str
     email: str
+
+
+class PassportSnapshotSchema(CamelModel):
+    """Customs PII frozen on the order at checkout (ADR-011).
+
+    Admin-only. Frontend masks ``passportSerial`` / ``passportNumber``
+    / ``inn`` in the UI (last 2-4 digits). Never surfaced via the
+    customer order endpoint.
+    """
+
+    passport_id: uuid.UUID
+    full_name_ru: str
+    full_name_lat: str
     passport_serial: str
     passport_number: str
     passport_issue_date: date
     birth_date: date
     inn: str
+    validation_status: str
 
 
 class AdminOrderSchema(CamelModel):
@@ -236,6 +271,7 @@ class AdminOrderSchema(CamelModel):
     updated_at: datetime
     items: list[OrderItemSchema]
     recipient_snapshot: RecipientSnapshotSchema | None = None
+    passport_snapshot: PassportSnapshotSchema | None = None
 
 
 class AdminOrderListResponse(CamelModel):
@@ -294,22 +330,19 @@ class WalkInCustomerProfileSchema(CamelModel):
 
 
 class InlineRecipientSchema(CamelModel):
-    """Customs PII captured inline by admin (no backing Recipient row).
+    """Shipping recipient captured inline by admin (no backing Recipient row).
 
-    Field-level format checks live in the domain ``RecipientSnapshot``
-    (passport 4+6, INN 12-digit, E.164 phone, email regex) and surface
-    here as a 422 if violated.
+    Post-Sprint-1.5 Part 2 / ADR-011: customs PII removed — admin
+    attaches a passport via ``AdminCreateWalkInOrderRequest.passportId``
+    (the passport must exist in the ``passports`` table). Field-level
+    format checks live in the domain ``RecipientSnapshot`` (E.164
+    phone, email regex) and surface here as a 422 if violated.
     """
 
     full_name_ru: str = Field(min_length=1, max_length=255)
     full_name_lat: str = Field(min_length=1, max_length=255)
     phone: str = Field(min_length=8, max_length=16)
     email: str = Field(min_length=3, max_length=255)
-    passport_serial: str = Field(min_length=4, max_length=4)
-    passport_number: str = Field(min_length=6, max_length=6)
-    passport_issue_date: date
-    birth_date: date
-    inn: str = Field(min_length=12, max_length=12)
 
 
 class WalkInItemSchema(CamelModel):
@@ -336,7 +369,13 @@ class OfflinePaymentSchema(CamelModel):
 
 
 class AdminCreateWalkInOrderRequest(CamelModel):
-    """Payload for ``POST /admin/orders`` (walk-in create)."""
+    """Payload for ``POST /admin/orders`` (walk-in create).
+
+    Sprint 1.5 Part 2 / ADR-011 — ``passportId`` field added (optional;
+    REQUIRED at handler level when any item is CROSS_BORDER). Admin
+    pre-creates the passport via ``POST /api/v1/passports`` (using the
+    walk-in customer's identity_id once provisioned).
+    """
 
     profile: WalkInCustomerProfileSchema
     recipient: InlineRecipientSchema
@@ -348,6 +387,14 @@ class AdminCreateWalkInOrderRequest(CamelModel):
     idempotency_key: str = Field(min_length=8, max_length=128)
     cny_rate_at_checkout: Decimal | None = None
     delivery_amount: int = Field(default=0, ge=0)
+    passport_id: uuid.UUID | None = Field(
+        default=None,
+        description=(
+            "ID of the customs Passport (see /api/v1/passports). "
+            "REQUIRED at handler-level when any walk-in item is "
+            "cross-border; optional for local-only walk-ins."
+        ),
+    )
 
 
 class AdminCreateWalkInOrderResponse(CamelModel):

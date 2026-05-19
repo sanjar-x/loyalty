@@ -16,7 +16,10 @@ from src.modules.order.domain.entities import (
     OrderItem,
 )
 from src.modules.order.domain.interfaces import IOrderRepository
-from src.modules.order.domain.recipient_snapshot import RecipientSnapshot
+from src.modules.order.domain.recipient_snapshot import (
+    PassportSnapshot,
+    RecipientSnapshot,
+)
 from src.modules.order.domain.value_objects import (
     CancellationReason,
     HoldReason,
@@ -58,11 +61,10 @@ class OrderRepository(IOrderRepository):
             recipient_full_name_lat=order.recipient_snapshot.full_name_lat,
             recipient_phone=order.recipient_snapshot.phone,
             recipient_email=order.recipient_snapshot.email,
-            recipient_passport_serial=order.recipient_snapshot.passport_serial,
-            recipient_passport_number=order.recipient_snapshot.passport_number,
-            recipient_passport_issue_date=order.recipient_snapshot.passport_issue_date,
-            recipient_birth_date=order.recipient_snapshot.birth_date,
-            recipient_inn=order.recipient_snapshot.inn,
+            # ADR-011 / Sprint 1.5 Part 2 — passport snapshot. Both
+            # columns NULL for local-only orders.
+            passport_id=order.passport_id,
+            passport_snapshot=_passport_snapshot_to_jsonb(order.passport_snapshot),
             payment_intent_id=order.payment_intent_id,
             incoming_declaration=(
                 order.incoming_declaration.value if order.incoming_declaration else None
@@ -136,11 +138,8 @@ class OrderRepository(IOrderRepository):
         row.recipient_full_name_lat = order.recipient_snapshot.full_name_lat
         row.recipient_phone = order.recipient_snapshot.phone
         row.recipient_email = order.recipient_snapshot.email
-        row.recipient_passport_serial = order.recipient_snapshot.passport_serial
-        row.recipient_passport_number = order.recipient_snapshot.passport_number
-        row.recipient_passport_issue_date = order.recipient_snapshot.passport_issue_date
-        row.recipient_birth_date = order.recipient_snapshot.birth_date
-        row.recipient_inn = order.recipient_snapshot.inn
+        row.passport_id = order.passport_id
+        row.passport_snapshot = _passport_snapshot_to_jsonb(order.passport_snapshot)
         row.payment_intent_id = order.payment_intent_id
         row.incoming_declaration = (
             order.incoming_declaration.value if order.incoming_declaration else None
@@ -271,6 +270,47 @@ class OrderRepository(IOrderRepository):
         return _to_domain(row) if row else None
 
 
+def _passport_snapshot_to_jsonb(snap: PassportSnapshot | None) -> dict | None:
+    """Serialise PassportSnapshot value object → JSONB column shape.
+
+    None passes through unchanged (local-only orders). camelCase keys
+    so the wire format and the DB payload stay aligned — admin tooling
+    consumes the JSONB directly.
+    """
+    if snap is None:
+        return None
+    return {
+        "passportId": snap.passport_id,
+        "fullNameRu": snap.full_name_ru,
+        "fullNameLat": snap.full_name_lat,
+        "passportSerial": snap.passport_serial,
+        "passportNumber": snap.passport_number,
+        "passportIssueDate": snap.passport_issue_date.isoformat(),
+        "birthDate": snap.birth_date.isoformat(),
+        "inn": snap.inn,
+        "validationStatus": snap.validation_status,
+    }
+
+
+def _passport_snapshot_from_jsonb(raw: dict | None) -> PassportSnapshot | None:
+    """Inverse of :func:`_passport_snapshot_to_jsonb`."""
+    if raw is None:
+        return None
+    from datetime import date
+
+    return PassportSnapshot(
+        passport_id=raw["passportId"],
+        full_name_ru=raw["fullNameRu"],
+        full_name_lat=raw["fullNameLat"],
+        passport_serial=raw["passportSerial"],
+        passport_number=raw["passportNumber"],
+        passport_issue_date=date.fromisoformat(raw["passportIssueDate"]),
+        birth_date=date.fromisoformat(raw["birthDate"]),
+        inn=raw["inn"],
+        validation_status=raw["validationStatus"],
+    )
+
+
 def _item_to_orm(itm: OrderItem, order_id: uuid.UUID) -> OrderItemModel:
     return OrderItemModel(
         id=itm.id,
@@ -325,12 +365,9 @@ def _to_domain(row: OrderModel) -> Order:
             full_name_lat=row.recipient_full_name_lat,
             phone=row.recipient_phone,
             email=row.recipient_email,
-            passport_serial=row.recipient_passport_serial,
-            passport_number=row.recipient_passport_number,
-            passport_issue_date=row.recipient_passport_issue_date,
-            birth_date=row.recipient_birth_date,
-            inn=row.recipient_inn,
         ),
+        passport_id=row.passport_id,
+        passport_snapshot=_passport_snapshot_from_jsonb(row.passport_snapshot),
         payment_intent_id=row.payment_intent_id,
         incoming_declaration=(
             IncomingDeclaration(value=row.incoming_declaration)

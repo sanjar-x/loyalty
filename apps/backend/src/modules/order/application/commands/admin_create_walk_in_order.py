@@ -33,9 +33,8 @@ from __future__ import annotations
 
 import uuid
 from dataclasses import dataclass
-from datetime import UTC, date, datetime, timedelta
+from datetime import UTC, datetime, timedelta
 from decimal import Decimal
-from typing import cast
 
 from attrs import field, frozen
 
@@ -59,8 +58,12 @@ from src.modules.order.domain.interfaces import (
     HistoryActor,
     IOrderRepository,
     IOrderStateHistoryWriter,
+    IPassportLookup,
 )
-from src.modules.order.domain.recipient_snapshot import RecipientSnapshot
+from src.modules.order.domain.recipient_snapshot import (
+    PassportSnapshot,
+    RecipientSnapshot,
+)
 from src.modules.order.domain.value_objects import (
     OfflinePaymentMethod,
     OfflinePaymentReceipt,
@@ -88,19 +91,16 @@ class InlineRecipientInput:
     Mirrors the columns of :class:`RecipientSnapshot`. Field-level
     validation runs in ``RecipientSnapshot.__attrs_post_init__``, not
     here, so the handler does not duplicate format checks.
+
+    Post-Sprint-1.5 Part 2 / ADR-011: customs fields removed —
+    admin attaches a passport via ``AdminCreateWalkInOrderCommand.
+    passport_id`` (Passport must exist in the ``passports`` table).
     """
 
     full_name_ru: str
     full_name_lat: str
     phone: str
     email: str
-    passport_serial: str
-    passport_number: str
-    passport_issue_date: (
-        object  # date — kept loose so the schema layer can hand a stdlib date through
-    )
-    birth_date: object
-    inn: str
 
 
 @frozen
@@ -139,6 +139,12 @@ class AdminCreateWalkInOrderCommand:
     idempotency_key: str
     cny_rate_at_checkout: Decimal | None = None
     delivery_amount: int = 0
+    # ADR-011 — passport selection for walk-in. Admin can pre-create
+    # a Passport via /api/v1/passports (using the walk-in customer's
+    # identity_id once provisioned, or own staff account during smoke).
+    # Required at Order.create_walk_in invariant level when any item is
+    # CROSS_BORDER; optional for local-only walk-ins.
+    passport_id: uuid.UUID | None = None
 
 
 @dataclass(frozen=True)
@@ -178,6 +184,7 @@ class AdminCreateWalkInOrderHandler:
         sku_reader: ICatalogSkuPriceReader,
         identity_provisioner: IWalkInIdentityProvisioner,
         override_writer: IPriceOverrideAuditWriter,
+        passport_lookup: IPassportLookup,
         idempotency_store: IIdempotencyStore,
         history_writer: IOrderStateHistoryWriter,
         uow: IUnitOfWork,
@@ -187,6 +194,7 @@ class AdminCreateWalkInOrderHandler:
         self._sku_reader = sku_reader
         self._provisioner = identity_provisioner
         self._override_writer = override_writer
+        self._passport_lookup = passport_lookup
         self._idem = idempotency_store
         self._history = history_writer
         self._uow = uow
@@ -245,6 +253,36 @@ class AdminCreateWalkInOrderHandler:
                     )
                 )
 
+            # ADR-011 — passport snapshot for the walk-in. Admin can
+            # pre-create a passport via /api/v1/passports; cross-border
+            # invariant in Order.create_walk_in() raises 422 if missing.
+            # Ownership is not enforced here (walk-in passport may be
+            # attached to the freshly-provisioned identity OR to the
+            # admin's own staff account during smoke runs); the archive
+            # check is the only boundary we keep.
+            passport_snapshot: PassportSnapshot | None = None
+            passport_id_for_order: uuid.UUID | None = None
+            if command.passport_id is not None:
+                passport = await self._passport_lookup.get(command.passport_id)
+                if passport is None or passport.is_archived:
+                    raise UnprocessableEntityError(
+                        message="Passport not found or archived",
+                        error_code="ORDER_PASSPORT_INVALID",
+                        details={"passport_id": str(command.passport_id)},
+                    )
+                passport_snapshot = PassportSnapshot(
+                    passport_id=str(passport.passport_id),
+                    full_name_ru=passport.full_name_ru,
+                    full_name_lat=passport.full_name_lat,
+                    passport_serial=passport.passport_serial,
+                    passport_number=passport.passport_number,
+                    passport_issue_date=passport.passport_issue_date,
+                    birth_date=passport.birth_date,
+                    inn=passport.inn,
+                    validation_status=passport.validation_status,
+                )
+                passport_id_for_order = passport.passport_id
+
             order = Order.create_walk_in(
                 identity_id=provisioned.identity_id,
                 items=items,
@@ -253,6 +291,8 @@ class AdminCreateWalkInOrderHandler:
                 recipient_snapshot=recipient_snapshot,
                 cny_rate_at_checkout=command.cny_rate_at_checkout,
                 delivery_amount=command.delivery_amount,
+                passport_id=passport_id_for_order,
+                passport_snapshot=passport_snapshot,
             )
 
             paid_at = command.payment.paid_at or datetime.now(UTC)
@@ -406,6 +446,10 @@ class AdminCreateWalkInOrderHandler:
         # ``recipient_id`` field (the row is never persisted, but a
         # consistent id helps reconciliation queries and is required
         # by ``RecipientSnapshot.with_updated_data``).
+        #
+        # Post-Sprint-1.5 Part 2 / ADR-011: customs fields no longer
+        # part of the snapshot — see passport_snapshot wiring inside
+        # the handler body.
         synthetic_recipient_id = uuid.uuid4()
         return RecipientSnapshot(
             recipient_id=str(synthetic_recipient_id),
@@ -413,9 +457,4 @@ class AdminCreateWalkInOrderHandler:
             full_name_lat=recipient.full_name_lat,
             phone=recipient.phone,
             email=recipient.email,
-            passport_serial=recipient.passport_serial,
-            passport_number=recipient.passport_number,
-            passport_issue_date=cast(date, recipient.passport_issue_date),
-            birth_date=cast(date, recipient.birth_date),
-            inn=recipient.inn,
         )

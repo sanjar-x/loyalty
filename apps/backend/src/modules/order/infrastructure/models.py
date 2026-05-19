@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import uuid
-from datetime import date, datetime
+from datetime import datetime
 from decimal import Decimal
 
 from sqlalchemy import (
@@ -11,7 +11,6 @@ from sqlalchemy import (
     BigInteger,
     Boolean,
     CheckConstraint,
-    Date,
     ForeignKey,
     Index,
     Integer,
@@ -43,6 +42,15 @@ class OrderModel(Base):
         CheckConstraint(
             "(creation_source = 'walk_in') = is_walk_in",
             name="ck_orders_walk_in_source_consistent",
+        ),
+        # ADR-011 / Sprint 1.5 Part 2 — passport_id ⇔ passport_snapshot
+        # pairing. Either both NULL (local-only order) or both set
+        # (cross-border order). Cross-border vs local invariant itself
+        # is enforced at the domain layer because the DB does not have
+        # per-item supplier_type context (items hang off order_items).
+        CheckConstraint(
+            "(passport_id IS NULL) = (passport_snapshot IS NULL)",
+            name="ck_orders_passport_pair_consistent",
         ),
         CheckConstraint("total_amount >= 0", name="ck_orders_total_nonnegative"),
         CheckConstraint(
@@ -94,21 +102,17 @@ class OrderModel(Base):
     )
     pickup_carrier: Mapped[str] = mapped_column(String(16), nullable=False)
     pickup_point_id: Mapped[str] = mapped_column(String(128), nullable=False)
-    # --- recipient snapshot (immutable copy at checkout) ---
+    # --- recipient snapshot (immutable copy at checkout — shipping only) ---
+    # Post-Sprint-1.5 Part 2 / ADR-011: customs PII columns
+    # (recipient_passport_*, recipient_birth_date, recipient_inn)
+    # dropped — that data lives on the new ``passport_snapshot`` JSONB
+    # column further down. RecipientSnapshot here keeps only shipping
+    # coordinates (name + phone + email + the soft FK to recipients.id).
     recipient_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), nullable=False)
     recipient_full_name_ru: Mapped[str] = mapped_column(String(255), nullable=False)
     recipient_full_name_lat: Mapped[str] = mapped_column(String(255), nullable=False)
     recipient_phone: Mapped[str] = mapped_column(String(16), nullable=False)
     recipient_email: Mapped[str] = mapped_column(String(255), nullable=False)
-    recipient_passport_serial: Mapped[str] = mapped_column(String(4), nullable=False)
-    recipient_passport_number: Mapped[str] = mapped_column(String(6), nullable=False)
-    recipient_passport_issue_date: Mapped[date] = mapped_column(  # type: ignore[name-defined]
-        Date, nullable=False
-    )
-    recipient_birth_date: Mapped[date] = mapped_column(  # type: ignore[name-defined]
-        Date, nullable=False
-    )
-    recipient_inn: Mapped[str] = mapped_column(String(12), nullable=False)
     payment_intent_id: Mapped[uuid.UUID | None] = mapped_column(
         UUID(as_uuid=True), nullable=True
     )
@@ -169,6 +173,32 @@ class OrderModel(Base):
         server_default=sa_text("'cart_checkout'"),
         index=True,
         comment="Order entry-point: cart_checkout | buy_now | walk_in",
+    )
+    # Sprint 1.5 Part 2 / ADR-011 — passport extracted as independent
+    # bounded context. Order links to passport-at-checkout time:
+    #
+    # * ``passport_id``: soft FK to ``passports.id`` (declared in the
+    #   migration with ``ON DELETE SET NULL`` so archiving a passport
+    #   does not lose order history). Nullable — local-only orders
+    #   skip customs entirely.
+    # * ``passport_snapshot``: frozen customs PII (JSONB) for legal /
+    #   reconstructable-invoice purposes. Survives Passport archival.
+    #
+    # Cross-border invariant (Order.create) requires both to be set
+    # whenever any item has ``supplier_type=CROSS_BORDER``. DB
+    # CHECK constraint enforces the same pair on persisted rows.
+    passport_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True), nullable=True, index=True
+    )
+    passport_snapshot: Mapped[dict | None] = mapped_column(
+        JSONB,
+        nullable=True,
+        comment=(
+            "Frozen customs PII at checkout time (full_name_ru/lat, "
+            "passport_serial/number/issue_date, birth_date, inn, "
+            "validation_status). Pair with passport_id; both NULL for "
+            "local-only orders."
+        ),
     )
     created_at: Mapped[datetime] = mapped_column(
         TIMESTAMP(timezone=True), server_default=func.now()

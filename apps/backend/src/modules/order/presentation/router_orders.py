@@ -134,6 +134,7 @@ async def create_order(
             idempotency_key=body.idempotency_key,
             payment_provider=body.payment_provider,
             delivery_quote_id=body.delivery_quote_id,
+            passport_id=body.passport_id,
         )
     )
     return CreateOrderResponse(
@@ -189,6 +190,7 @@ async def buy_now_order(
             delivery_quote_id=body.delivery_quote_id,
             idempotency_key=body.idempotency_key,
             payment_provider=body.payment_provider,
+            passport_id=body.passport_id,
         )
     )
     return CreateOrderResponse(

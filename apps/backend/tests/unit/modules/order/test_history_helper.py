@@ -5,7 +5,7 @@ mapping logic without spinning up a real session.
 """
 
 import uuid
-from datetime import date, datetime
+from datetime import datetime
 from decimal import Decimal
 
 import pytest
@@ -72,15 +72,13 @@ def _recipient_snapshot() -> RecipientSnapshot:
         full_name_lat="Ivan Ivanov",
         phone="+79108897762",
         email="ivan@example.com",
-        passport_serial="1234",
-        passport_number="567890",
-        passport_issue_date=date(2015, 5, 22),
-        birth_date=date(1990, 1, 1),
-        inn="500100732272",
     )
 
 
 def _order() -> Order:
+    from tests.factories.passport_factories import make_passport_snapshot
+
+    snap = make_passport_snapshot()
     return Order.create(
         identity_id=uuid.uuid4(),
         cart_id=uuid.uuid4(),
@@ -104,6 +102,8 @@ def _order() -> Order:
         ),
         recipient_snapshot=_recipient_snapshot(),
         cny_rate_at_checkout=Decimal("13.5"),
+        passport_id=uuid.UUID(snap.passport_id),
+        passport_snapshot=snap,
     )
 
 

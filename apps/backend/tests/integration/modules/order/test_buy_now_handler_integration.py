@@ -262,18 +262,12 @@ async def seed_identity_and_recipient(
                 id, identity_id,
                 full_name_ru, full_name_lat,
                 phone, email,
-                passport_serial, passport_number, passport_issue_date,
-                birth_date, inn,
-                validation_status, validation_failed_reason, is_archived,
-                version
+                is_archived, version
             ) VALUES (
                 :id, :identity,
                 :fn_ru, :fn_lat,
                 :phone, :email,
-                :ps, :pn, :pid,
-                :bd, :inn,
-                'pending', NULL, false,
-                0
+                false, 0
             )
             """
         ),
@@ -284,6 +278,43 @@ async def seed_identity_and_recipient(
             "fn_lat": _RECIPIENT_PII["full_name_lat"],
             "phone": _RECIPIENT_PII["phone"],
             "email": _RECIPIENT_PII["email"],
+        },
+    )
+    await db_session.flush()
+    return {"identity_id": identity_id, "recipient_id": recipient_id}
+
+
+@pytest.fixture
+async def seed_passport(
+    db_session: AsyncSession,
+    seed_identity_and_recipient: dict,
+) -> dict:
+    """Insert a Passport row owned by the seeded identity (ADR-011).
+
+    Required for Buy Now flows that target CROSS_BORDER SKUs — the
+    domain invariant in ``Order.create`` rejects cross-border carts
+    without an attached passport snapshot.
+    """
+    passport_id = uuid.uuid4()
+    await db_session.execute(
+        text(
+            """
+            INSERT INTO passports (
+                id, identity_id, full_name_ru, full_name_lat,
+                passport_serial, passport_number, passport_issue_date,
+                birth_date, inn, validation_status, is_archived, version
+            ) VALUES (
+                :id, :identity, :fn_ru, :fn_lat,
+                :ps, :pn, :pid, :bd, :inn,
+                'pending', false, 0
+            )
+            """
+        ),
+        {
+            "id": passport_id,
+            "identity": seed_identity_and_recipient["identity_id"],
+            "fn_ru": _RECIPIENT_PII["full_name_ru"],
+            "fn_lat": _RECIPIENT_PII["full_name_lat"],
             "ps": _RECIPIENT_PII["passport_serial"],
             "pn": _RECIPIENT_PII["passport_number"],
             "pid": _RECIPIENT_PII["passport_issue_date"],
@@ -292,7 +323,7 @@ async def seed_identity_and_recipient(
         },
     )
     await db_session.flush()
-    return {"identity_id": identity_id, "recipient_id": recipient_id}
+    return {"passport_id": passport_id}
 
 
 # ---------------------------------------------------------------------------
@@ -351,10 +382,15 @@ def _build_handler(session: AsyncSession) -> CreateBuyNowOrderHandler:
         logger=logger,
     )
 
+    from src.modules.order.infrastructure.adapters.passport_lookup import (
+        PassportLookupAdapter,
+    )
+
     return CreateBuyNowOrderHandler(
         order_repo=OrderRepository(session),
         sku_reader=CatalogSkuPriceReader(session),
         recipient_lookup=RecipientLookupAdapter(session),
+        passport_lookup=PassportLookupAdapter(session),
         delivery_quote_lookup=DeliveryQuoteAdapter(session),
         idempotency_store=SqlIdempotencyStore(session),
         payment_gateway=PaymentGateway(
@@ -375,6 +411,7 @@ def _cmd(
     recipient_id: uuid.UUID,
     idempotency_key: str,
     quantity: int = 1,
+    passport_id: uuid.UUID | None = None,
 ) -> CreateBuyNowOrderCommand:
     return CreateBuyNowOrderCommand(
         identity_id=identity_id,
@@ -386,6 +423,7 @@ def _cmd(
         ),
         delivery_quote_id=None,
         idempotency_key=idempotency_key,
+        passport_id=passport_id,
     )
 
 
@@ -459,6 +497,7 @@ async def test_buy_now_persists_order_payment_outbox_and_idempotency(
     db_session: AsyncSession,
     seed_sku: dict,
     seed_identity_and_recipient: dict,
+    seed_passport: dict,
 ) -> None:
     """Полный happy-path: handler.handle() → DB-side эффекты атомарны.
 
@@ -474,6 +513,7 @@ async def test_buy_now_persists_order_payment_outbox_and_idempotency(
         recipient_id=seed_identity_and_recipient["recipient_id"],
         idempotency_key=idemp_key,
         quantity=2,
+        passport_id=seed_passport["passport_id"],
     )
 
     result = await handler.handle(cmd)
@@ -550,6 +590,7 @@ async def test_buy_now_replay_returns_same_order_without_duplicate_persistence(
     db_session: AsyncSession,
     seed_sku: dict,
     seed_identity_and_recipient: dict,
+    seed_passport: dict,
 ) -> None:
     """Повторный вызов с тем же ``idempotency_key`` обязан вернуть тот
     же ``order_id`` и не плодить второй Order / PaymentIntent /
@@ -561,6 +602,7 @@ async def test_buy_now_replay_returns_same_order_without_duplicate_persistence(
         sku_id=seed_sku["sku_id"],
         recipient_id=seed_identity_and_recipient["recipient_id"],
         idempotency_key=idemp_key,
+        passport_id=seed_passport["passport_id"],
     )
 
     first = await handler.handle(cmd)
@@ -616,15 +658,11 @@ async def test_buy_now_rejects_recipient_of_another_customer(
             INSERT INTO recipients (
                 id, identity_id, full_name_ru, full_name_lat,
                 phone, email,
-                passport_serial, passport_number, passport_issue_date,
-                birth_date, inn,
-                validation_status, validation_failed_reason, is_archived, version
+                is_archived, version
             ) VALUES (
                 :id, :identity, :fn_ru, :fn_lat,
                 :phone, :email,
-                :ps, :pn, :pid,
-                :bd, :inn,
-                'pending', NULL, false, 0
+                false, 0
             )
             """
         ),
@@ -635,11 +673,6 @@ async def test_buy_now_rejects_recipient_of_another_customer(
             "fn_lat": "Foreign",
             "phone": _RECIPIENT_PII["phone"],
             "email": "foreign@example.com",
-            "ps": _RECIPIENT_PII["passport_serial"],
-            "pn": _RECIPIENT_PII["passport_number"],
-            "pid": _RECIPIENT_PII["passport_issue_date"],
-            "bd": _RECIPIENT_PII["birth_date"],
-            "inn": _RECIPIENT_PII["inn"],
         },
     )
     await db_session.flush()
@@ -665,6 +698,7 @@ async def test_buy_now_does_not_touch_carts_table(
     db_session: AsyncSession,
     seed_sku: dict,
     seed_identity_and_recipient: dict,
+    seed_passport: dict,
 ) -> None:
     """ADR-010 Invariant I1: Buy Now не модифицирует корзину customer'а.
 
@@ -685,6 +719,7 @@ async def test_buy_now_does_not_touch_carts_table(
         sku_id=seed_sku["sku_id"],
         recipient_id=seed_identity_and_recipient["recipient_id"],
         idempotency_key=f"int-buynow-invariant-i1-{uuid.uuid4().hex[:8]}",
+        passport_id=seed_passport["passport_id"],
     )
     result = await handler.handle(cmd)
 

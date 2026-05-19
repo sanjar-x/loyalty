@@ -59,6 +59,25 @@ class OrderDeliveryAmountInvalidError(ValidationError):
         )
 
 
+class PassportRequiredForCrossBorderError(UnprocessableEntityError):
+    """Cross-border item present without an attached passport snapshot.
+
+    Sprint 1.5 Part 2 / ADR-011 invariant. Order.create raises this when
+    at least one ``OrderItem.supplier_type == SupplierType.CROSS_BORDER``
+    but ``passport_snapshot is None``. Local-only orders are exempt —
+    they don't pass through customs.
+    """
+
+    def __init__(self) -> None:
+        super().__init__(
+            message=(
+                "Passport is required for cross-border orders. "
+                "Attach a passport via ``passport_id`` at checkout."
+            ),
+            error_code="PASSPORT_REQUIRED_FOR_CROSS_BORDER",
+        )
+
+
 class OrderHoldStateError(ConflictError):
     def __init__(self, *, status: str) -> None:
         super().__init__(
