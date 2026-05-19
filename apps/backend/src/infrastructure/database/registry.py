@@ -73,6 +73,7 @@ from src.modules.order.infrastructure.models import (
     OrderItemModel,
     OrderModel,
 )
+from src.modules.passport.infrastructure.models import PassportModel
 from src.modules.payment.infrastructure.models import PaymentIntentModel
 from src.modules.pricing.infrastructure.models import (
     CategoryPricingSettingsModel,
@@ -130,6 +131,7 @@ __all__ = [
     "OrderItemModel",
     "OrderModel",
     "OutboxMessage",
+    "PassportModel",
     "PaymentIntentModel",
     "PermissionModel",
     "PricingContextModel",

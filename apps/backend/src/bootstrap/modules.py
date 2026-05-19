@@ -24,6 +24,7 @@ from src.modules.identity.module import IDENTITY_MODULE
 from src.modules.image.module import IMAGE_MODULE
 from src.modules.logistics.module import LOGISTICS_MODULE
 from src.modules.order.module import ORDER_MODULE
+from src.modules.passport.module import PASSPORT_MODULE
 from src.modules.payment.module import PAYMENT_MODULE
 from src.modules.pricing.module import PRICING_MODULE
 from src.modules.recipient.module import RECIPIENT_MODULE
@@ -57,6 +58,12 @@ MODULES: tuple[ModuleManifest, ...] = (
     LOGISTICS_MODULE,
     PAYMENT_MODULE,
     RECIPIENT_MODULE,
+    # Passport is registered right after Recipient because both are
+    # customer-PII bounded contexts; Order (next) depends on both via
+    # IRecipientLookup + IPassportLookup adapters but reads passports
+    # at request time, not at manifest discovery — order so the DI
+    # container has both providers when order's request handlers fire.
+    PASSPORT_MODULE,
     ORDER_MODULE,
     REFERRAL_MODULE,
 )
