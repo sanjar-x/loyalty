@@ -1,8 +1,8 @@
-"""Recipient read-models (customer + admin views)."""
+"""Recipient read-models (post-Sprint-1.5 Part 2 — shipping-only)."""
 
 import uuid
 from dataclasses import dataclass
-from datetime import date, datetime
+from datetime import datetime
 
 
 @dataclass(frozen=True)
@@ -12,13 +12,6 @@ class RecipientReadModel:
     full_name_lat: str
     phone: str
     email: str
-    passport_serial: str
-    passport_number: str
-    passport_issue_date: date
-    birth_date: date
-    inn: str
-    validation_status: str
-    validation_failed_reason: str | None
     is_archived: bool
     created_at: datetime
     updated_at: datetime

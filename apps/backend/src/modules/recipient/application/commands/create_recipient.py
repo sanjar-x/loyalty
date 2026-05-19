@@ -1,25 +1,18 @@
 """Command: create a new Recipient owned by ``identity_id``.
 
-Format-level validation runs synchronously inside ``CustomsData.parse``
-and the small VOs. External (DaData) validation is deferred to the
-DobroPost cross-border step (research §10.5.1) — at create time we
-record the recipient with ``validation_status=PENDING``. Customers can
-checkout against PENDING recipients; if customs later rejects passport,
-Order moves to ON_HOLD.
+Post-Sprint-1.5 Part 2 (ADR-011): customs identifiers (passport,
+INN, birth_date) live in the separate ``passport`` bounded context.
+Recipient holds shipping coordinates only — name + phone + email —
+and no validation FSM (shipping data is a destination, not a
+document).
 """
 
 import uuid
 from dataclasses import dataclass
-from datetime import date
 
 from src.modules.recipient.domain.entities import Recipient
 from src.modules.recipient.domain.interfaces import IRecipientRepository
-from src.modules.recipient.domain.value_objects import (
-    CustomsData,
-    Email,
-    FullName,
-    Phone,
-)
+from src.modules.recipient.domain.value_objects import Email, FullName, Phone
 from src.shared.interfaces.logger import ILogger
 from src.shared.interfaces.uow import IUnitOfWork
 
@@ -31,11 +24,6 @@ class CreateRecipientCommand:
     full_name_lat: str
     phone: str
     email: str
-    passport_serial: str
-    passport_number: str
-    passport_issue_date: date
-    birth_date: date
-    inn: str
 
 
 @dataclass(frozen=True)
@@ -63,13 +51,6 @@ class CreateRecipientHandler:
                 ),
                 phone=Phone.parse(command.phone),
                 email=Email.parse(command.email),
-                customs_data=CustomsData.parse(
-                    passport_serial=command.passport_serial,
-                    passport_number=command.passport_number,
-                    passport_issue_date=command.passport_issue_date,
-                    birth_date=command.birth_date,
-                    inn=command.inn,
-                ),
             )
             recipient = await self._repo.add(recipient)
             self._uow.register_aggregate(recipient)

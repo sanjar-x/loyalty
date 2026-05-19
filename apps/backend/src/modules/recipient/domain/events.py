@@ -1,4 +1,10 @@
-"""Recipient domain events."""
+"""Recipient domain events.
+
+Post-Sprint-1.5 Part 2: validation events (Verified / Invalidated)
+moved to the ``passport`` bounded context together with the customs
+data. Recipient retains only lifecycle events
+(Created / Updated / Archived).
+"""
 
 import uuid
 from dataclasses import dataclass
@@ -31,29 +37,7 @@ class RecipientUpdatedEvent(
     aggregate_id_field="recipient_id",
 ):
     recipient_id: uuid.UUID | None = None
-    customs_data_changed: bool = False
     event_type: str = "RecipientUpdatedEvent"
-
-
-@dataclass(frozen=True)
-class RecipientVerifiedEvent(
-    RecipientEvent,
-    required_fields=("recipient_id",),
-    aggregate_id_field="recipient_id",
-):
-    recipient_id: uuid.UUID | None = None
-    event_type: str = "RecipientVerifiedEvent"
-
-
-@dataclass(frozen=True)
-class RecipientInvalidatedEvent(
-    RecipientEvent,
-    required_fields=("recipient_id",),
-    aggregate_id_field="recipient_id",
-):
-    recipient_id: uuid.UUID | None = None
-    reason: str = ""
-    event_type: str = "RecipientInvalidatedEvent"
 
 
 @dataclass(frozen=True)

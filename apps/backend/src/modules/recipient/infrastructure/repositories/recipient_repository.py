@@ -1,4 +1,9 @@
-"""Data Mapper for the Recipient aggregate."""
+"""Data Mapper for the Recipient aggregate (shipping-coordinate slice).
+
+Post-Sprint-1.5 Part 2: customs PII mapped through the ``passport``
+module's repository instead. Recipient round-trip is name + phone +
+email + archive flag.
+"""
 
 import uuid
 
@@ -7,13 +12,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.modules.recipient.domain.entities import Recipient
 from src.modules.recipient.domain.interfaces import IRecipientRepository
-from src.modules.recipient.domain.value_objects import (
-    CustomsData,
-    Email,
-    FullName,
-    Phone,
-    RecipientValidationStatus,
-)
+from src.modules.recipient.domain.value_objects import Email, FullName, Phone
 from src.modules.recipient.infrastructure.models import RecipientModel
 
 
@@ -47,13 +46,6 @@ class RecipientRepository(IRecipientRepository):
         row.full_name_lat = recipient.full_name.lat
         row.phone = recipient.phone.e164
         row.email = recipient.email.value
-        row.passport_serial = recipient.customs_data.passport_serial
-        row.passport_number = recipient.customs_data.passport_number
-        row.passport_issue_date = recipient.customs_data.passport_issue_date
-        row.birth_date = recipient.customs_data.birth_date
-        row.inn = recipient.customs_data.inn
-        row.validation_status = recipient.validation_status.value
-        row.validation_failed_reason = recipient.validation_failed_reason
         row.is_archived = recipient.is_archived
         row.version = recipient.version + 1
         row.updated_at = recipient.updated_at
@@ -85,13 +77,6 @@ def _to_orm(recipient: Recipient) -> RecipientModel:
         full_name_lat=recipient.full_name.lat,
         phone=recipient.phone.e164,
         email=recipient.email.value,
-        passport_serial=recipient.customs_data.passport_serial,
-        passport_number=recipient.customs_data.passport_number,
-        passport_issue_date=recipient.customs_data.passport_issue_date,
-        birth_date=recipient.customs_data.birth_date,
-        inn=recipient.customs_data.inn,
-        validation_status=recipient.validation_status.value,
-        validation_failed_reason=recipient.validation_failed_reason,
         is_archived=recipient.is_archived,
         version=recipient.version,
         created_at=recipient.created_at,
@@ -106,15 +91,6 @@ def _to_domain(row: RecipientModel) -> Recipient:
         full_name=FullName(ru=row.full_name_ru, lat=row.full_name_lat),
         phone=Phone(e164=row.phone),
         email=Email(value=row.email),
-        customs_data=CustomsData(
-            passport_serial=row.passport_serial,
-            passport_number=row.passport_number,
-            passport_issue_date=row.passport_issue_date,
-            birth_date=row.birth_date,
-            inn=row.inn,
-        ),
-        validation_status=RecipientValidationStatus(row.validation_status),
-        validation_failed_reason=row.validation_failed_reason,
         is_archived=row.is_archived,
         created_at=row.created_at,
         updated_at=row.updated_at,

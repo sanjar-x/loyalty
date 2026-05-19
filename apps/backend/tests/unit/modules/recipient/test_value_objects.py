@@ -1,21 +1,14 @@
-"""Unit tests for Recipient value objects (validators)."""
+"""Unit tests for Recipient value objects (validators).
 
-from datetime import date, timedelta
-from typing import Any
+Post-ADR-011: customs PII validators (passport / INN / birth_date)
+moved to ``tests/unit/modules/passport/test_value_objects.py``. This
+file covers the shipping-only VOs that remain on Recipient.
+"""
 
 import pytest
 
-from src.modules.recipient.domain.exceptions import (
-    InvalidCustomsDataError,
-    InvalidRecipientFieldError,
-)
-from src.modules.recipient.domain.value_objects import (
-    CustomsData,
-    Email,
-    FullName,
-    Phone,
-    RecipientValidationStatus,
-)
+from src.modules.recipient.domain.exceptions import InvalidRecipientFieldError
+from src.modules.recipient.domain.value_objects import Email, FullName, Phone
 
 pytestmark = pytest.mark.unit
 
@@ -66,62 +59,3 @@ class TestEmail:
             Email.parse("notanemail")
         with pytest.raises(InvalidRecipientFieldError):
             Email.parse("a@b")  # missing dot in domain
-
-
-class TestCustomsData:
-    def _ok_args(self) -> dict[str, Any]:
-        return dict(
-            passport_serial="1234",
-            passport_number="567890",
-            passport_issue_date=date(2015, 5, 22),
-            birth_date=date(1990, 1, 1),
-            inn="500100732272",  # valid checksum
-        )
-
-    def test_happy(self) -> None:
-        c = CustomsData.parse(**self._ok_args())
-        assert c.passport_serial == "1234"
-        assert c.inn == "500100732272"
-
-    def _with(self, **overrides: Any) -> dict[str, Any]:
-        args = self._ok_args()
-        args.update(overrides)
-        return args
-
-    def test_passport_serial_wrong_length(self) -> None:
-        with pytest.raises(InvalidCustomsDataError):
-            CustomsData.parse(**self._with(passport_serial="12345"))
-
-    def test_passport_number_wrong_length(self) -> None:
-        with pytest.raises(InvalidCustomsDataError):
-            CustomsData.parse(**self._with(passport_number="12345"))
-
-    def test_inn_wrong_checksum(self) -> None:
-        with pytest.raises(InvalidCustomsDataError):
-            CustomsData.parse(**self._with(inn="500100732250"))
-
-    def test_inn_wrong_length(self) -> None:
-        with pytest.raises(InvalidCustomsDataError):
-            CustomsData.parse(**self._with(inn="12345"))
-
-    def test_passport_issued_in_future_rejected(self) -> None:
-        with pytest.raises(InvalidCustomsDataError):
-            CustomsData.parse(
-                **self._with(passport_issue_date=date.today() + timedelta(days=1))
-            )
-
-    def test_passport_issued_before_1991_rejected(self) -> None:
-        with pytest.raises(InvalidCustomsDataError):
-            CustomsData.parse(**self._with(passport_issue_date=date(1985, 1, 1)))
-
-    def test_under_16_rejected(self) -> None:
-        too_young = date.today() - timedelta(days=15 * 365)
-        with pytest.raises(InvalidCustomsDataError):
-            CustomsData.parse(**self._with(birth_date=too_young))
-
-
-class TestRecipientValidationStatusEnum:
-    def test_values(self) -> None:
-        assert RecipientValidationStatus.PENDING.value == "pending"
-        assert RecipientValidationStatus.VERIFIED.value == "verified"
-        assert RecipientValidationStatus.INVALID.value == "invalid"

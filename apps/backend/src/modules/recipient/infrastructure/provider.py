@@ -1,4 +1,9 @@
-"""Dishka IoC provider for the Recipient module."""
+"""Dishka IoC provider for the Recipient module.
+
+Post-Sprint-1.5 Part 2: validator + dobropost-passport consumer
+removed. Their counterparts live (or will live, when wired) in the
+``passport`` bounded context.
+"""
 
 from dishka import Provider, Scope, provide
 from dishka.dependency_source.composite import CompositeDependencySource
@@ -9,15 +14,8 @@ from src.modules.recipient.application.commands.archive_recipient import (
 from src.modules.recipient.application.commands.create_recipient import (
     CreateRecipientHandler,
 )
-from src.modules.recipient.application.commands.mark_validation_status import (
-    MarkRecipientInvalidHandler,
-    MarkRecipientVerifiedHandler,
-)
 from src.modules.recipient.application.commands.update_recipient import (
     UpdateRecipientHandler,
-)
-from src.modules.recipient.application.consumers.dobropost_passport_events import (
-    DobroPostPassportValidatedConsumer,
 )
 from src.modules.recipient.application.queries.get_recipient import (
     GetRecipientHandler,
@@ -25,13 +23,7 @@ from src.modules.recipient.application.queries.get_recipient import (
 from src.modules.recipient.application.queries.list_my_recipients import (
     ListMyRecipientsHandler,
 )
-from src.modules.recipient.domain.interfaces import (
-    IRecipientRepository,
-    IRecipientValidator,
-)
-from src.modules.recipient.infrastructure.adapters.dadata_validator_stub import (
-    DaDataValidatorStub,
-)
+from src.modules.recipient.domain.interfaces import IRecipientRepository
 from src.modules.recipient.infrastructure.repositories.recipient_repository import (
     RecipientRepository,
 )
@@ -40,9 +32,6 @@ from src.modules.recipient.infrastructure.repositories.recipient_repository impo
 class RecipientProvider(Provider):
     repo: CompositeDependencySource = provide(
         RecipientRepository, scope=Scope.REQUEST, provides=IRecipientRepository
-    )
-    validator: CompositeDependencySource = provide(
-        DaDataValidatorStub, scope=Scope.APP, provides=IRecipientValidator
     )
 
     create_handler: CompositeDependencySource = provide(
@@ -53,15 +42,6 @@ class RecipientProvider(Provider):
     )
     archive_handler: CompositeDependencySource = provide(
         ArchiveRecipientHandler, scope=Scope.REQUEST
-    )
-    mark_verified_handler: CompositeDependencySource = provide(
-        MarkRecipientVerifiedHandler, scope=Scope.REQUEST
-    )
-    mark_invalid_handler: CompositeDependencySource = provide(
-        MarkRecipientInvalidHandler, scope=Scope.REQUEST
-    )
-    passport_consumer: CompositeDependencySource = provide(
-        DobroPostPassportValidatedConsumer, scope=Scope.REQUEST
     )
 
     get_handler: CompositeDependencySource = provide(

@@ -1,25 +1,21 @@
 """Command: update an existing Recipient.
 
-Editing customs data resets ``validation_status`` to PENDING — DobroPost
-will revalidate on the next cross-border attempt. Ownership of the
-recipient is enforced by ``identity_id`` match (mismatch → 404).
+Post-Sprint-1.5 Part 2: customs fields removed from the payload —
+they live on Passport now. Recipient holds shipping coordinates only.
+Ownership of the recipient is enforced by ``identity_id`` match
+(mismatch → 404). Optional ``expected_version`` preserves the
+ETag / If-Match optimistic-locking contract.
 """
 
 import uuid
 from dataclasses import dataclass
-from datetime import date
 
 from src.modules.recipient.domain.exceptions import (
     RecipientNotFoundError,
     RecipientOwnershipError,
 )
 from src.modules.recipient.domain.interfaces import IRecipientRepository
-from src.modules.recipient.domain.value_objects import (
-    CustomsData,
-    Email,
-    FullName,
-    Phone,
-)
+from src.modules.recipient.domain.value_objects import Email, FullName, Phone
 from src.shared.exceptions import OptimisticLockError
 from src.shared.interfaces.logger import ILogger
 from src.shared.interfaces.uow import IUnitOfWork
@@ -33,11 +29,6 @@ class UpdateRecipientCommand:
     full_name_lat: str | None = None
     phone: str | None = None
     email: str | None = None
-    passport_serial: str | None = None
-    passport_number: str | None = None
-    passport_issue_date: date | None = None
-    birth_date: date | None = None
-    inn: str | None = None
     expected_version: int | None = None
     """D0.3 — when set, the handler enforces optimistic locking before
     mutating: aggregate ``version`` mismatch raises
@@ -65,12 +56,6 @@ class UpdateRecipientHandler:
             if recipient.identity_id != command.identity_id:
                 raise RecipientOwnershipError(recipient_id=str(command.recipient_id))
 
-            # D0.3 — early optimistic-lock check when an expected version
-            # was provided (typically via the router's ``If-Match`` header).
-            # Mismatch surfaces as :class:`OptimisticLockError` (409) at the
-            # handler layer; the router then upgrades it to 412
-            # ``PRECONDITION_FAILED`` when the client used If-Match (see
-            # ``recipient/presentation/router_recipients.py``).
             if (
                 command.expected_version is not None
                 and command.expected_version != recipient.version
@@ -92,31 +77,10 @@ class UpdateRecipientHandler:
             )
             phone = Phone.parse(command.phone) if command.phone else None
             email = Email.parse(command.email) if command.email else None
-            customs_data = (
-                CustomsData.parse(
-                    passport_serial=command.passport_serial
-                    or recipient.customs_data.passport_serial,
-                    passport_number=command.passport_number
-                    or recipient.customs_data.passport_number,
-                    passport_issue_date=command.passport_issue_date
-                    or recipient.customs_data.passport_issue_date,
-                    birth_date=command.birth_date or recipient.customs_data.birth_date,
-                    inn=command.inn or recipient.customs_data.inn,
-                )
-                if (
-                    command.passport_serial
-                    or command.passport_number
-                    or command.passport_issue_date
-                    or command.birth_date
-                    or command.inn
-                )
-                else None
-            )
             recipient.update(
                 full_name=full_name,
                 phone=phone,
                 email=email,
-                customs_data=customs_data,
             )
             await self._repo.update(recipient)
             self._uow.register_aggregate(recipient)

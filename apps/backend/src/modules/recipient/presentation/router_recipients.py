@@ -54,13 +54,6 @@ def _serialize(model: RecipientReadModel) -> RecipientSchema:
         full_name_lat=model.full_name_lat,
         phone=model.phone,
         email=model.email,
-        passport_serial=model.passport_serial,
-        passport_number=model.passport_number,
-        passport_issue_date=model.passport_issue_date,
-        birth_date=model.birth_date,
-        inn=model.inn,
-        validation_status=model.validation_status,
-        validation_failed_reason=model.validation_failed_reason,
         is_archived=model.is_archived,
         created_at=model.created_at,
         updated_at=model.updated_at,
@@ -85,11 +78,6 @@ async def create_recipient(
             full_name_lat=body.full_name_lat,
             phone=body.phone,
             email=body.email,
-            passport_serial=body.passport_serial,
-            passport_number=body.passport_number,
-            passport_issue_date=body.passport_issue_date,
-            birth_date=body.birth_date,
-            inn=body.inn,
         )
     )
     return CreateRecipientResponse(recipient_id=result.recipient_id)
@@ -147,11 +135,6 @@ async def update_recipient(
                 full_name_lat=body.full_name_lat,
                 phone=body.phone,
                 email=body.email,
-                passport_serial=body.passport_serial,
-                passport_number=body.passport_number,
-                passport_issue_date=body.passport_issue_date,
-                birth_date=body.birth_date,
-                inn=body.inn,
                 expected_version=if_match_version,
             )
         )

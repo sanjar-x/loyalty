@@ -37,15 +37,6 @@ class InvalidRecipientFieldError(ValidationError):
         )
 
 
-class InvalidCustomsDataError(ValidationError):
-    def __init__(self, *, field: str, reason: str) -> None:
-        super().__init__(
-            message=f"Invalid customs data ({field}): {reason}",
-            error_code="RECIPIENT_INVALID_CUSTOMS_DATA",
-            details={"field": field, "reason": reason},
-        )
-
-
 class RecipientOwnershipError(NotFoundError):
     """Returned as 404 to leak no information about other identities' recipients."""
 
