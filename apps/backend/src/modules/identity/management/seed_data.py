@@ -130,6 +130,13 @@ PERMISSIONS: list[SeedPermission] = [
     SeedPermission(
         "customers:manage", "Управление клиентами (деактивация, реактивация)"
     ),
+    # ── Passport (admin read-only, ADR-011) ──────────────────────────────
+    SeedPermission(
+        "passport:read",
+        "Просмотр customs паспортов клиента (admin walk-in selector). "
+        "Admin не создаёт / не редактирует / не архивирует паспорт — это всегда "
+        "self-service customer scope. См. ADR-011 § I2.",
+    ),
     # ── Geo ──────────────────────────────────────────────────────────────
     SeedPermission(
         "geo:manage", "Управление гео-справочниками (страны, валюты, языки, регионы)"
@@ -194,6 +201,7 @@ ROLES: list[SeedRole] = [
             "profile:read",
             "customers:read",
             "customers:manage",
+            "passport:read",
             "staff:manage",
             "staff:invite",
             "pricing:read",

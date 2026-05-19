@@ -2,10 +2,12 @@
 
 from src.bootstrap.module_registry import ModuleManifest
 from src.modules.passport.infrastructure.provider import PassportProvider
+from src.modules.passport.presentation.router_admin import admin_passport_router
 from src.modules.passport.presentation.router_passports import passport_router
 
 PASSPORT_MODULE = ModuleManifest(
     name="passport",
     providers=(PassportProvider(),),
     customer_routers=(passport_router,),
+    admin_routers=(admin_passport_router,),
 )
