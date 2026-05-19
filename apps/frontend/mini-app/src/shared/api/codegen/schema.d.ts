@@ -4977,6 +4977,35 @@ export interface paths {
         patch: operations["update_passport_api_v1_passports__passportId__patch"];
         trace?: never;
     };
+    "/api/v1/admin/passports": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Admin List Passports
+         * @description List passports owned by a specific customer (admin walk-in selector).
+         *
+         *     Returns ``200`` with an empty list when ``identityId`` matches no
+         *     passports — admin UI uses the same empty state for «customer has no
+         *     passport yet» and «no such identity», avoiding a 404 branch on a
+         *     selector that is allowed to be empty.
+         *
+         *     ``includeArchived`` defaults to ``false`` so the selector never
+         *     surfaces soft-deleted rows by accident; pass ``true`` from the
+         *     admin audit view if needed.
+         */
+        get: operations["admin_list_passports_api_v1_admin_passports_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/orders": {
         parameters: {
             query?: never;
@@ -23978,6 +24007,38 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    admin_list_passports_api_v1_admin_passports_get: {
+        parameters: {
+            query: {
+                identityId: string;
+                includeArchived?: boolean;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PassportListResponse"];
+                };
             };
             /** @description Validation Error */
             422: {

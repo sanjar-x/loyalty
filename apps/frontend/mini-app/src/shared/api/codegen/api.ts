@@ -49,6 +49,7 @@ export const addTagTypes = [
   "Webhooks / Payments",
   "Recipients",
   "Passports",
+  "Admin / Passport",
   "Orders",
   "Admin / Orders",
   "Webhooks / DobroPost",
@@ -3675,6 +3676,19 @@ const injectedRtkApi = api
         }),
         invalidatesTags: ["Passports"],
       }),
+      adminListPassportsApiV1AdminPassportsGet: build.query<
+        AdminListPassportsApiV1AdminPassportsGetApiResponse,
+        AdminListPassportsApiV1AdminPassportsGetApiArg
+      >({
+        query: (queryArg) => ({
+          url: `/api/v1/admin/passports`,
+          params: {
+            identityId: queryArg.identityId,
+            includeArchived: queryArg.includeArchived,
+          },
+        }),
+        providesTags: ["Admin / Passport"],
+      }),
       createOrderApiV1OrdersPost: build.mutation<
         CreateOrderApiV1OrdersPostApiResponse,
         CreateOrderApiV1OrdersPostApiArg
@@ -5911,6 +5925,12 @@ export type UpdatePassportApiV1PassportsPassportIdPatchApiArg = {
 export type ArchivePassportApiV1PassportsPassportIdDeleteApiResponse = unknown;
 export type ArchivePassportApiV1PassportsPassportIdDeleteApiArg = {
   passportId: string;
+};
+export type AdminListPassportsApiV1AdminPassportsGetApiResponse =
+  /** status 200 Successful Response */ PassportListResponse;
+export type AdminListPassportsApiV1AdminPassportsGetApiArg = {
+  identityId: string;
+  includeArchived?: boolean;
 };
 export type CreateOrderApiV1OrdersPostApiResponse =
   /** status 201 Successful Response */ CreateOrderResponse;
@@ -9900,6 +9920,8 @@ export const {
   useLazyGetPassportApiV1PassportsPassportIdGetQuery,
   useUpdatePassportApiV1PassportsPassportIdPatchMutation,
   useArchivePassportApiV1PassportsPassportIdDeleteMutation,
+  useAdminListPassportsApiV1AdminPassportsGetQuery,
+  useLazyAdminListPassportsApiV1AdminPassportsGetQuery,
   useCreateOrderApiV1OrdersPostMutation,
   useListMyOrdersApiV1OrdersGetQuery,
   useLazyListMyOrdersApiV1OrdersGetQuery,
