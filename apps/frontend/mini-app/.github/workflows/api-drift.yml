@@ -4,7 +4,7 @@ name: API drift guard
 # kerak. Aks holda RTKQ endpoint'lari va TS tiplari eskirgan bo'ladi va
 # silently 404/422 chiqaradi. Bu workflow har PR/push'da:
 #  1. Hozirgi commit'dagi `openapi.json` ustidan codegen ishga tushiradi
-#  2. `lib/store/__generated__` ostida `git diff --exit-code` qiladi
+#  2. `src/shared/api/codegen` ostida `git diff --exit-code` qiladi
 #  3. Tipcheck + testlarni ishga tushiradi
 #
 # Drift bo'lsa CI qizaradi va PR author'i `npm run api:gen && npm run api:types`
@@ -15,7 +15,7 @@ on:
     branches: [main]
     paths:
       - 'openapi.json'
-      - 'lib/store/**'
+      - 'src/shared/api/**'
       - 'openapi.config.cjs'
       - 'package.json'
       - 'package-lock.json'
@@ -48,7 +48,7 @@ jobs:
 
       - name: Verify no drift
         run: |
-          if ! git diff --exit-code lib/store/__generated__; then
+          if ! git diff --exit-code src/shared/api/codegen; then
             echo ""
             echo "::error::Codegen drift detected. Run 'npm run api:gen && npm run api:types' locally and commit the changes."
             exit 1

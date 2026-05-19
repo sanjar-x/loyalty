@@ -15,6 +15,13 @@ import {
 import { normalizeApiError, humanizeApiError } from '@/shared/api/errors';
 import { formatRub as formatRubShared } from '@/shared/lib/money';
 
+// Cross-feature import accepted: «Купить сейчас» button now opens the
+// buy-now-checkout sheet directly (ADR-010 I1 — no cart side effects on
+// this path). Same rationale as features/buy-now-checkout cross-feature
+// imports for recipient-form / pickup-selection / checkout-flow.
+// eslint-disable-next-line no-restricted-imports
+import { useBuyNowStore } from '@/features/buy-now-checkout';
+
 const useGetProductByIdQuery = (slugOrId, opts) =>
   useGetStorefrontProductApiV1StorefrontProductsSlugGetQuery({ slug: String(slugOrId) }, opts);
 const useAddCartItemMutation = () => {
@@ -228,6 +235,12 @@ export default function QuickAddSheet({ product, productSlug, open, onClose }) {
   const [submitState, setSubmitState] = useState(SUBMIT_STATE.IDLE);
   const [errorMsg, setErrorMsg] = useState('');
 
+  // Sprint 1.5 kill-switch: when the backend has flipped BUY_NOW_ENABLED
+  // off, the «Купить сейчас» button greys out for the TTL window
+  // (`BUY_NOW_DISABLED_TTL_MS` ≈ 5 min). The store reactively notifies
+  // re-renders; `isDisabledNow()` self-heals on expiry.
+  const buyNowDisabledReason = useBuyNowStore((s) => s.disabledReason);
+
   const successTimerRef = useRef(null);
 
   const [addCartItem, { isLoading: isAdding }] = useAddCartItemMutation();
@@ -393,12 +406,38 @@ export default function QuickAddSheet({ product, productSlug, open, onClose }) {
     }, SUCCESS_AUTO_CLOSE_MS);
   }
 
-  async function handleBuyNow() {
-    const ok = await performAdd();
-    if (!ok) return;
-    // "Buy now" — navigates to the cart (`/cart`), the sheet closes immediately.
+  function handleBuyNow() {
+    // FE-1 + FE-6: Buy Now no longer routes through the cart. Open the
+    // standalone buy-now sheet (ADR-010 endpoint) instead — this path
+    // MUST NOT touch the cart, the `localStorage.loyaltymarket_cart_meta_v1`
+    // store, or trigger an addCartItem mutation.
+    if (!selectedSku?.id) return;
+    if (useBuyNowStore.getState().isDisabledNow()) {
+      // Sprint 1.5 kill-switch active — fall back to the cart flow so
+      // the customer is not stranded.
+      performAdd().then((ok) => {
+        if (!ok) return;
+        onClose?.();
+        router.push(CART_ROUTE);
+      });
+      return;
+    }
+    useBuyNowStore.getState().open({
+      skuId: selectedSku.id,
+      quantity: 1,
+      productMeta: {
+        name: productName,
+        image: imageSrc,
+        variantLabel: skuLabel(selectedSku),
+        priceRub: Number(displayPriceRub) || 0,
+        // Sprint 1.5 Part 2: storefront supplier.type lands on the
+        // merged product via mapStorefrontProduct (ADR-011 Gap A).
+        // BuyNowSheet's FSM uses it to insert the PASSPORT step for
+        // cross-border SKUs and skip it for local ones.
+        supplierType: merged?.supplierType ?? null,
+      },
+    });
     onClose?.();
-    router.push(CART_ROUTE);
   }
 
   // Label hierarchy:
@@ -436,7 +475,12 @@ export default function QuickAddSheet({ product, productSlug, open, onClose }) {
               type="button"
               className={styles.btnOutline}
               onClick={handleBuyNow}
-              disabled={submitDisabled}
+              disabled={submitDisabled || Boolean(buyNowDisabledReason)}
+              title={
+                buyNowDisabledReason
+                  ? 'Buy Now временно недоступен, попробуйте через несколько минут'
+                  : undefined
+              }
             >
               Купить сейчас
             </button>

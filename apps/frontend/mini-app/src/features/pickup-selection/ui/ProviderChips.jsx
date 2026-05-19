@@ -2,7 +2,10 @@ import { cn } from '@/shared/lib/ui-utils';
 
 import { PVZ_PROVIDERS } from '@/entities/pickup-point/lib/pvzProviders';
 
-import styles from './page.module.css';
+// FIXME(PHASE-9-TODO): see PickupModeToggle.jsx — legacy page-level CSS,
+// awaiting slice-local module.
+// eslint-disable-next-line no-restricted-imports
+import styles from '../../../app/checkout/pickup/page.module.css';
 
 /**
  * PVZ provider filter chips (All / CDEK / Yandex). Audit #1:

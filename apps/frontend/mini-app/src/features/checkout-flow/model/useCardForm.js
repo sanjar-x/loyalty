@@ -2,11 +2,7 @@
 
 import { useCallback, useMemo, useState } from 'react';
 
-import {
-  formatCardNumber,
-  normalizeCardNumberDigits,
-  normalizeExpiry,
-} from '@/shared/lib/card';
+import { formatCardNumber, normalizeCardNumberDigits, normalizeExpiry } from '@/shared/lib/card';
 import { validateCardDraft } from '../lib/validators';
 
 /**

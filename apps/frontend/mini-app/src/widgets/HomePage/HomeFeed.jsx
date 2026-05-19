@@ -1,6 +1,6 @@
 import FriendsSection from '@/features/home-feed/ui/FriendsSection';
 import HomeDeliveryStatusCard from '@/features/home-feed/ui/HomeDeliveryStatusCard';
-import ProductSection from '@/entities/product';
+import { ProductSection } from '@/entities/product';
 import { useDragToScroll } from '@/shared/lib/hooks';
 import { MAX_AUTO_RETRIES } from '@/features/home-feed';
 

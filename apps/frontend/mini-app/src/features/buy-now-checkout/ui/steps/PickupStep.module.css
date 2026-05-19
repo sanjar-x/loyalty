@@ -1,0 +1,125 @@
+/* Layout primitives for the inline pickup-selector. Buy-now sheet is
+   width-constrained, so the map host is given a fixed 320 px height —
+   tall enough for marker clustering to feel meaningful without crowding
+   the rest of the sheet (provider chips, mode toggle, confirm button). */
+
+.selectedBanner {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 12px;
+  border-radius: 12px;
+  background: rgba(17, 17, 17, 0.04);
+}
+
+.selectedTitle {
+  font-size: 14px;
+  font-weight: 600;
+  color: #111111;
+  line-height: 1.3;
+}
+
+.selectedSubtitle {
+  font-size: 12px;
+  color: rgba(17, 17, 17, 0.65);
+}
+
+.mapWrap {
+  position: relative;
+  height: 320px;
+  border-radius: 12px;
+  overflow: hidden;
+  background: rgba(17, 17, 17, 0.04);
+}
+
+.mapHost {
+  width: 100%;
+  height: 100%;
+}
+
+.mapBadge {
+  position: absolute;
+  top: 8px;
+  left: 8px;
+  right: 8px;
+  padding: 6px 10px;
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.92);
+  color: rgba(17, 17, 17, 0.75);
+  font-size: 12px;
+  pointer-events: none;
+  z-index: 400;
+}
+
+.geoButton {
+  position: absolute;
+  bottom: 12px;
+  right: 12px;
+  padding: 8px 12px;
+  border: 1px solid rgba(17, 17, 17, 0.12);
+  border-radius: 10px;
+  background: #ffffff;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  font-family: inherit;
+  z-index: 400;
+}
+
+.listWrap {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.listSearch {
+  appearance: none;
+  border: 1px solid rgba(17, 17, 17, 0.12);
+  border-radius: 10px;
+  padding: 10px 12px;
+  font-size: 14px;
+  font-family: inherit;
+  background: #ffffff;
+  color: #111111;
+}
+
+.listScroll {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  max-height: 360px;
+  overflow-y: auto;
+  padding-right: 2px;
+}
+
+.listItem {
+  text-align: left;
+  appearance: none;
+  border: 1px solid rgba(17, 17, 17, 0.08);
+  border-radius: 10px;
+  padding: 10px 12px;
+  background: #ffffff;
+  cursor: pointer;
+  font-family: inherit;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.listItemTitle {
+  font-size: 13px;
+  font-weight: 600;
+  color: #111111;
+}
+
+.listItemSubtitle {
+  font-size: 12px;
+  color: rgba(17, 17, 17, 0.65);
+  line-height: 1.35;
+}
+
+.listItemDistance {
+  font-size: 11px;
+  font-weight: 600;
+  color: rgba(17, 17, 17, 0.55);
+}

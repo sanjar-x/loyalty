@@ -1,7 +1,7 @@
 'use client';
 
 import Image from 'next/image';
-import SearchBar from '@/features/search';
+import { SearchBar } from '@/features/search';
 import Footer from '@/widgets/Footer';
 
 import styles from './page.module.css';

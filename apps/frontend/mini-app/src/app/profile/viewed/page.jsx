@@ -1,7 +1,7 @@
 'use client';
 import Header from '@/widgets/Header';
 import Footer from '@/widgets/Footer';
-import ProductSection from '@/entities/product';
+import { ProductSection } from '@/entities/product';
 import { useMemo, useState } from 'react';
 import styles from './page.module.css';
 

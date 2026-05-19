@@ -6,7 +6,7 @@ import Image from 'next/image';
 
 import Footer from '@/widgets/Footer';
 import Header from '@/widgets/Header';
-import SearchBar from '@/features/search';
+import { SearchBar } from '@/features/search';
 import SubcategoryList from '@/entities/category/ui/SubcategoryList';
 import CategoryBreadcrumbs from '@/entities/category/ui/CategoryBreadcrumbs';
 import { useGetCategoryTreeQuery } from '@/entities/category';

@@ -5,7 +5,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { Trash2 } from 'lucide-react';
 import Footer from '@/widgets/Footer';
-import ProductSection from '@/entities/product';
+import { ProductSection } from '@/entities/product';
 import { useCart } from '@/entities/cart';
 import { useItemFavorites } from '@/features/favorites';
 import { useGetForYouFeedQuery } from '@/entities/product';

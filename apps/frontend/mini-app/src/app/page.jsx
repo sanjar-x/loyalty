@@ -3,15 +3,15 @@
 import { Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 
-import SearchBar from '@/features/search';
-import SearchOverlay from '@/features/search';
+import { SearchBar } from '@/features/search';
+import { SearchOverlay } from '@/features/search';
 import Header from '@/widgets/Header';
 import Footer from '@/widgets/Footer';
 import CategoryTabs from '@/features/home-feed/ui/CategoryTabs';
-import ProductSection from '@/entities/product';
-import SelectSheet from '@/features/search';
-import PriceSheet from '@/features/search';
-import FiltersSheet from '@/features/search';
+import { ProductSection } from '@/entities/product';
+import { SelectSheet } from '@/features/search';
+import { PriceSheet } from '@/features/search';
+import { FiltersSheet } from '@/features/search';
 import { mapProductCard } from '@/entities/product';
 import { useGetTrendingProductsQuery } from '@/entities/product';
 import { useCreateSearchHistoryMutation } from '@/features/search';

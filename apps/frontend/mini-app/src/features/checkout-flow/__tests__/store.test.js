@@ -1,6 +1,6 @@
 import { beforeEach, describe, it, expect } from 'vitest';
 
-import { useCheckoutStore, CheckoutStatus } from '../model/store';
+import { CheckoutStatus, selectHasCrossBorderItems, useCheckoutStore } from '../model/store';
 
 beforeEach(() => {
   useCheckoutStore.getState().reset();
@@ -194,6 +194,78 @@ describe('checkout store — payment (CHK-024)', () => {
     useCheckoutStore.getState().setPayment({ paymentIntentId: 'x' });
     useCheckoutStore.getState().reset();
     expect(useCheckoutStore.getState().payment).toBeNull();
+  });
+});
+
+describe('checkout store — passport (ADR-011)', () => {
+  it('initial state — passportId null', () => {
+    expect(useCheckoutStore.getState().passportId).toBeNull();
+  });
+
+  it('setPassportId — stores id and clears error', () => {
+    const s = useCheckoutStore.getState();
+    s.setError({ code: 'X' });
+    s.setPassportId('pp-1');
+    const after = useCheckoutStore.getState();
+    expect(after.passportId).toBe('pp-1');
+    expect(after.error).toBeNull();
+  });
+
+  it('clearPassportId — wipes passportId without touching recipient/pickup', () => {
+    const s = useCheckoutStore.getState();
+    s.setPassportId('pp-1');
+    s.setRecipient({ fullName: 'X' });
+    s.clearPassportId();
+    expect(useCheckoutStore.getState().passportId).toBeNull();
+    expect(useCheckoutStore.getState().recipient?.fullName).toBe('X');
+  });
+
+  it('reset() clears passportId', () => {
+    useCheckoutStore.getState().setPassportId('pp-1');
+    useCheckoutStore.getState().reset();
+    expect(useCheckoutStore.getState().passportId).toBeNull();
+  });
+
+  it('passport selection is independent of recipient — setRecipient does NOT invalidate passportId', () => {
+    const s = useCheckoutStore.getState();
+    s.setPassportId('pp-1');
+    s.setRecipient({ fullName: 'New' });
+    expect(useCheckoutStore.getState().passportId).toBe('pp-1');
+  });
+});
+
+describe('selectHasCrossBorderItems — cart-flow PASSPORT trigger (ADR-011)', () => {
+  it('returns false for empty list / non-array input', () => {
+    expect(selectHasCrossBorderItems([])).toBe(false);
+    expect(selectHasCrossBorderItems(null)).toBe(false);
+    expect(selectHasCrossBorderItems(undefined)).toBe(false);
+  });
+
+  it('returns false for local-only cart', () => {
+    expect(
+      selectHasCrossBorderItems([
+        { skuId: 'a', supplierType: 'local' },
+        { skuId: 'b', supplierType: 'retail' },
+      ])
+    ).toBe(false);
+  });
+
+  it('returns true when at least one item is cross_border (mixed cart)', () => {
+    expect(
+      selectHasCrossBorderItems([
+        { skuId: 'a', supplierType: 'local' },
+        { skuId: 'b', supplierType: 'cross_border' },
+      ])
+    ).toBe(true);
+  });
+
+  it('returns true for fully cross-border cart', () => {
+    expect(
+      selectHasCrossBorderItems([
+        { skuId: 'a', supplierType: 'cross_border' },
+        { skuId: 'b', supplierType: 'cross_border' },
+      ])
+    ).toBe(true);
   });
 });
 

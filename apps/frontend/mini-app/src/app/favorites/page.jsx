@@ -5,7 +5,7 @@ import Header from '@/widgets/Header';
 import Footer from '@/widgets/Footer';
 import BrandsSection from '@/features/favorites/ui/BrandsSection';
 import EmptyState from '@/features/favorites/ui/EmptyState';
-import ProductSection from '@/entities/product';
+import { ProductSection } from '@/entities/product';
 
 import { useGetBrandsQuery } from '@/entities/brand';
 import { useGetForYouFeedQuery, useGetProductsByIdsQuery } from '@/entities/product';

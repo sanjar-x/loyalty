@@ -11,9 +11,10 @@ import InitTelegramMock from '@/shared/lib/dev';
 import StoreProvider from '@/app/providers/StoreProvider';
 import TelegramAppShell from '@/widgets/TelegramAppShell';
 import Toaster from '@/shared/ui/Toaster';
-// Sprint 3b: side-effect — registers QuickAddSheet/SplitPaymentSheet
-// in the entities/product slot so ProductCard/ProductPrice can render them.
-import '@/features/add-to-cart';
+// Sprint 3b: side effect for registering QuickAddSheet/SplitPaymentSheet
+// into entities/product's slot has moved into the client provider —
+// see `app/providers/StoreProvider.jsx`. Layout stays a Server Component
+// so it can't import a `'use client'` module's side effects directly.
 
 const inter = localFont({
   src: [

@@ -25,7 +25,6 @@ import {
   isCurrencyMismatchError,
 } from '../lib/errors';
 import { useCheckoutStore, CheckoutStatus } from './store';
-import { parseRuDate } from '@/shared/lib/date-format';
 import { PHONE_FORMATS } from '@/shared/lib/phone';
 import { restoreCartItems } from '../lib/cartRollback';
 import { pickProviderErrorMessage } from '../lib/quoteErrorMessage';
@@ -117,7 +116,11 @@ export function useCheckoutFlow() {
   const orderId = useCheckoutStore((s) => s.orderId);
   const error = useCheckoutStore((s) => s.error);
   const recipient = useCheckoutStore((s) => s.recipient);
-  const customs = useCheckoutStore((s) => s.customs);
+  // ADR-011: customs documents replaced by Passport bounded context.
+  // `passportId` is set by `<PassportSheet />` / `<PassportPicker />`
+  // when the customer resolves a passport; required for cross-border
+  // carts.
+  const passportId = useCheckoutStore((s) => s.passportId);
   const selectedRecipientId = useCheckoutStore((s) => s.selectedRecipientId);
 
   const setSelection = useCheckoutStore((s) => s.setSelection);
@@ -352,24 +355,27 @@ export function useCheckoutFlow() {
   /**
    * Prepares the recipient resource:
    *  • If `selectedRecipientId` already exists — returns it
-   *  • Otherwise calls `POST /api/v1/recipients` to create a new resource
+   *  • Otherwise calls `POST /api/v1/recipients` to create a fresh row.
    *
-   * Backend `CreateRecipientRequest` requires both the UI form and customs
-   * to be fully filled. The UI collects these fields in two forms
-   * (recipient sheet + customs sheet) — here we gather them from the store
-   * and validate.
+   * Post-ADR-011 the request payload is shipping-only: `fullNameRu`,
+   * `fullNameLat`, `phone`, `email`. Customs documents (passport, INN,
+   * birth date) moved to the Passport bounded context and are resolved
+   * via `useCheckoutStore.passportId` separately. `placeOrder` checks
+   * the passport invariant before POST /cart/checkout when the cart is
+   * cross-border (defence-in-depth — backend re-checks via I2).
    *
-   * Latin name `fullNameLat` — the UI currently naively transliterates from
-   * the entered full name. Ideally the user would enter Latin in a separate
-   * field (TODO P1.UI).
+   * Latin name is still transliterated locally if the customer hasn't
+   * provided it; the recipient form in `app/checkout/page.jsx` will
+   * eventually offer a dedicated Latin field, until then we keep the
+   * fallback.
    */
   const ensureRecipient = useCallback(async () => {
     if (selectedRecipientId) return selectedRecipientId;
 
-    if (!recipient || !customs) {
+    if (!recipient) {
       setError({
         code: 'RECIPIENT_REQUIRED',
-        message: 'Заполните данные получателя и таможенные реквизиты',
+        message: 'Заполните данные получателя',
       });
       return null;
     }
@@ -379,33 +385,19 @@ export function useCheckoutFlow() {
     const country = recipient.country || 'RU';
     const phoneFormat = PHONE_FORMATS[country] || PHONE_FORMATS.RU;
     const email = String(recipient.email || '').trim();
-    const passportSerial = String(customs.passportSeries || '').replace(/\D/g, '');
-    const passportNumber = String(customs.passportNumber || '').replace(/\D/g, '');
-    // The UI stores dates as `DD.MM.YYYY` (CHK-001) — backend expects ISO.
-    const passportIssueDate = parseRuDate(customs.issueDate);
-    const birthDate = parseRuDate(customs.birthDate);
-    const inn = String(customs.inn || '').replace(/\D/g, '');
 
-    if (
-      !fullNameRu ||
-      phoneRaw.length !== phoneFormat.lenAfter ||
-      !email ||
-      passportSerial.length !== 4 ||
-      passportNumber.length !== 6 ||
-      !passportIssueDate ||
-      !birthDate ||
-      inn.length !== 12
-    ) {
+    if (!fullNameRu || phoneRaw.length !== phoneFormat.lenAfter || !email) {
       setError({
         code: 'RECIPIENT_INVALID',
-        message: 'Заполните все поля получателя и паспортные данные',
+        message: 'Заполните данные получателя',
       });
       return null;
     }
 
-    // Minimal Russian → Latin transliteration. Backend writes `fullNameLat`
-    // into shipper documents; until a separate Latin field is added in the
-    // UI, this fallback is sufficient (the backend may re-normalize itself).
+    // Minimal Russian → Latin transliteration. Backend stores
+    // `fullNameLat` on the Recipient row for courier paperwork; until
+    // the UI exposes a dedicated Latin input we transliterate locally
+    // (backend may re-normalise on its own).
     const fullNameLat = transliterateRuToLat(fullNameRu);
 
     try {
@@ -414,11 +406,6 @@ export function useCheckoutFlow() {
         fullNameLat,
         phone: `${phoneFormat.prefix}${phoneRaw}`,
         email,
-        passportSerial,
-        passportNumber,
-        passportIssueDate,
-        birthDate,
-        inn,
       }).unwrap();
       const id = resp?.recipientId;
       if (!id) {
@@ -438,7 +425,7 @@ export function useCheckoutFlow() {
       });
       return null;
     }
-  }, [recipient, customs, selectedRecipientId, createRecipient, setSelectedRecipientId, setError]);
+  }, [recipient, selectedRecipientId, createRecipient, setSelectedRecipientId, setError]);
 
   /* ── Place order (initiate → confirm pipeline) ── */
 
@@ -479,6 +466,19 @@ export function useCheckoutFlow() {
       return null;
     }
 
+    // ADR-011 defence-in-depth: cross-border cart MUST carry a
+    // resolved passportId before initiate or backend rejects with
+    // `422 PASSPORT_REQUIRED_FOR_CROSS_BORDER`. Short-circuit here so
+    // the UI can open `<PassportSheet />` immediately instead of
+    // round-tripping.
+    if (hasCrossBorderItems && !passportId) {
+      setError({
+        code: 'PASSPORT_REQUIRED_FOR_CROSS_BORDER',
+        message: 'Для cross-border заказа нужен паспорт получателя',
+      });
+      return null;
+    }
+
     if (!acquireInflight(inflightRef)) return null;
 
     try {
@@ -503,10 +503,31 @@ export function useCheckoutFlow() {
           pickupPointId: pickup.externalId,
           pickupCarrier: pickup.providerCode,
           recipientId,
+          // ADR-011: pass passportId when the cart is cross-border;
+          // null for local-only orders so backend's Optional schema
+          // accepts the payload.
+          passportId: hasCrossBorderItems ? (passportId ?? null) : null,
           __idempotencyKey: idempotencyKey,
         }).unwrap();
       } catch (err) {
         const norm = normalizeApiError(err);
+        // ADR-011 I2 recovery: if the backend says we forgot a
+        // passport (Gap A regression or a stale supplierType cache),
+        // surface a typed error so the page can re-open
+        // `<PassportSheet />`. We don't auto-open here because the
+        // open/close state lives in the page.
+        if (norm.code === 'PASSPORT_REQUIRED_FOR_CROSS_BORDER') {
+          setError({
+            code: 'PASSPORT_REQUIRED_FOR_CROSS_BORDER',
+            message: 'Для cross-border заказа нужен паспорт получателя',
+          });
+          const snapBefore = useCheckoutStore.getState().removedItemsSnapshot?.length || 0;
+          await restoreRemoved();
+          if (snapBefore > 0) {
+            toast.info('Не удалось оформить заказ. Товары возвращены в корзину.');
+          }
+          return null;
+        }
         setError({
           code: norm.code,
           message: norm.message || 'Не удалось начать оформление',
@@ -622,6 +643,8 @@ export function useCheckoutFlow() {
     pickup,
     quote,
     cart,
+    hasCrossBorderItems,
+    passportId,
     prepareCart,
     ensureRecipient,
     initiateCheckout,

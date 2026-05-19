@@ -4,7 +4,7 @@ import { devtools, persist, createJSONStorage } from 'zustand/middleware';
 import { onPickupSelected } from '@/shared/lib/events';
 
 /**
- * Checkout state machine.
+ * Cart-flow checkout state machine.
  *
  * State diagram:
  *
@@ -24,9 +24,19 @@ import { onPickupSelected } from '@/shared/lib/events';
  *  • CONFIRMED        — `orderId` returned (page navigates)
  *  • CANCELLED        — `/cart/checkout/cancel` succeeded (or TTL expired)
  *
- * Persist: only `selectedSkuIds` is stored (so the user's selection isn't lost
- * on reload). `attemptId / snapshotId / expiresAt` are **not persisted** —
- * the frozen state is valid only within this tab/session.
+ * ADR-011: customs documents moved out of Recipient into the independent
+ * Passport bounded context. Cart-flow now holds `passportId` (M:N with
+ * Recipient via Order). When any selected SKU is cross-border, the
+ * customer must resolve a passport before `placeOrder` can succeed —
+ * backend rejects otherwise with
+ * `422 PASSPORT_REQUIRED_FOR_CROSS_BORDER` (see useCheckoutFlow
+ * defence-in-depth + recovery branch).
+ *
+ * Persist contract (`lm-checkout-store`, sessionStorage): we keep the
+ * customer's selections + drafts so a reload mid-checkout doesn't lose
+ * progress. The transient backend state (attemptId, snapshotId,
+ * frozen expiry, idempotency key, kill-switches) is intentionally
+ * excluded.
  */
 
 export const CheckoutStatus = Object.freeze({
@@ -43,47 +53,24 @@ export const CheckoutStatus = Object.freeze({
 
 const initialState = {
   status: CheckoutStatus.IDLE,
-  // Cart selection (SKUs the user picked in `/cart`)
   selectedSkuIds: [],
-  // Pickup-point (after the user selects a PVZ)
-  pickup: null, // { externalId, providerCode, address, lat?, lon?, name?, deliveryType? }
-  // Quote (result of logistics/rates/quote)
-  quote: null, // { quoteId, deliveryAmount, currency, deliveryDaysMin, deliveryDaysMax, expiresAt }
-  // Checkout attempt (result of cart/checkout)
-  attempt: null, // { attemptId, snapshotId, expiresAt }
-  // Recipient — UI draft. `fullName` is the full name (Cyrillic or Latin),
-  // `phoneDigits` are operator digits (excluding the country prefix), `country`
-  // is one of the CIS countries (RU/BY/KZ/UZ/UA), default "RU".
-  // `email` is optional (backend requires it but we keep a fallback so the user
-  // doesn't have to enter it on step 0).
-  // The backend `recipientId` (UUID) lives in `selectedRecipientId`, and in
-  // `placeOrder` that ID is sent; if absent, `placeOrder` creates a new resource
-  // via ensureRecipient and stores its id.
+  pickup: null,
+  quote: null,
+  attempt: null,
+  // Post-ADR-011 recipient is shipping-only: fullName / fullNameLat / phone / email
+  // (resolved through `entities/recipient`'s reduced CreateRecipientRequest).
   recipient: null,
-  // Required for cross-border goods: passport series/number (RF), issue date,
-  // birth date, INN. Part of the backend `CreateRecipientRequest`.
-  customs: null,
-  // ID of the recipient resource created by the backend. Must exist by the time
-  // `placeOrder` initiate is called.
+  // ADR-011: customs migrated to a Passport aggregate. The store holds
+  // a resolved `passportId` (UUID) — set by `<PassportSheet />` /
+  // `<PassportPicker />`. Required for cross-border carts.
+  passportId: null,
   selectedRecipientId: null,
-  // Promo: { code, discountRub }
   promo: null,
-  // Payment method ("sbp" | "card"). No card details are stored —
-  // card payment is deferred to the payment provider widget (PCI DSS).
   paymentMethod: 'sbp',
-  // Final order
   orderId: null,
-  // CHK-024: payment metadata from the POST /orders response. `clientSecret`
-  // is an opaque value passed to the provider widget (Stripe-like).
-  payment: null, // { paymentIntentId, clientSecret, totalAmount, currency }
-  // Error (envelope code or message)
+  payment: null,
   error: null,
-  // CHK-004: snapshot of CartItemResponse for items prepareCart removed from
-  // the cart (the unselected SKUs). Used to restore on initiate/confirm fail.
-  // Transient — lost when the page closes (we don't get the backend TTL,
-  // this is UX compensation).
   removedItemsSnapshot: null,
-  // Sprint 3e: pvzAccumCache has been moved to entities/pickup-point/model/pvzAccumStore.
 };
 
 export const useCheckoutStore = create(
@@ -121,9 +108,6 @@ export const useCheckoutStore = create(
         setPickup: (pickup) =>
           set(
             (state) => {
-              // CHK-015 defense-in-depth: if the pickup is identical and the
-              // status is already QUOTING/READY — no-op. The deps fix in
-              // page.jsx is enough, but if called from elsewhere there's no loop.
               const prev = state.pickup;
               const stableStatus =
                 state.status === CheckoutStatus.QUOTING || state.status === CheckoutStatus.READY;
@@ -136,10 +120,6 @@ export const useCheckoutStore = create(
                 prev.lon === pickup?.lon &&
                 stableStatus;
               if (isSame) return state;
-              // CHK-024: different pickup points → different tariffs. The old quote
-              // (and its serviceCode/fallbackAlternatives) is invalid — we
-              // reset it, and refreshQuote requests the cheapest tariff from
-              // a clean state.
               const isDifferentPickup =
                 !prev ||
                 prev.externalId !== pickup?.externalId ||
@@ -159,7 +139,6 @@ export const useCheckoutStore = create(
         setQuote: (quote) =>
           set(
             (state) => {
-              // CHK-015: idempotent — if the same quoteId is written again, no-op.
               const prev = state.quote;
               if (
                 prev &&
@@ -198,7 +177,6 @@ export const useCheckoutStore = create(
         setAttempt: (attempt) =>
           set(
             (state) => {
-              // CHK-015: idempotent.
               if (
                 state.attempt &&
                 state.attempt.attemptId === attempt?.attemptId &&
@@ -218,8 +196,6 @@ export const useCheckoutStore = create(
         setOrder: (orderId) =>
           set(
             (state) => {
-              // CHK-015: idempotent — if the onConfirmed effect lands here a
-              // second time, no re-render is triggered.
               if (state.orderId === orderId && state.status === CheckoutStatus.CONFIRMED) {
                 return state;
               }
@@ -236,13 +212,12 @@ export const useCheckoutStore = create(
             {
               ...initialState,
               status: CheckoutStatus.CANCELLED,
-              // We don't preserve selectedSkuIds — if the user returns they re-select
             },
             false,
             'markCancelled'
           ),
 
-        /* ── Recipient / customs / promo / payment ── */
+        /* ── Recipient / passport / promo / payment ── */
         setRecipient: (recipient) =>
           set(
             // When the recipient draft changes, the backend resource ID becomes
@@ -251,7 +226,15 @@ export const useCheckoutStore = create(
             false,
             'setRecipient'
           ),
-        setCustoms: (customs) => set({ customs, selectedRecipientId: null }, false, 'setCustoms'),
+
+        /**
+         * ADR-011: passport selection is independent of recipient now.
+         * Setting / clearing it does NOT invalidate `selectedRecipientId`
+         * because they map to different aggregates server-side.
+         */
+        setPassportId: (passportId) => set({ passportId, error: null }, false, 'setPassportId'),
+        clearPassportId: () => set({ passportId: null }, false, 'clearPassportId'),
+
         setSelectedRecipientId: (selectedRecipientId) =>
           set({ selectedRecipientId }, false, 'setSelectedRecipientId'),
         setPromo: (promo) => set({ promo }, false, 'setPromo'),
@@ -284,14 +267,12 @@ export const useCheckoutStore = create(
         storage: createJSONStorage(() =>
           typeof window !== 'undefined' ? window.sessionStorage : undefined
         ),
-        // Only the user's selection and required draft fields — we don't
-        // persist the backend attemptId or the frozen-state (there's a TTL,
-        // on re-open the backend must freeze again).
         partialize: (state) => ({
           selectedSkuIds: state.selectedSkuIds,
           pickup: state.pickup,
           recipient: state.recipient,
-          customs: state.customs,
+          // ADR-011: customs replaced by passportId; whitelist updated.
+          passportId: state.passportId,
           promo: state.promo,
           paymentMethod: state.paymentMethod,
           selectedRecipientId: state.selectedRecipientId,
@@ -309,4 +290,21 @@ if (typeof window !== 'undefined') {
   onPickupSelected((pickup) => {
     useCheckoutStore.getState().setPickup(pickup);
   });
+}
+
+/**
+ * ADR-011 selector: true iff any item in the cart selection is
+ * cross-border. Powers the conditional PASSPORT tile / sheet in the
+ * cart-flow checkout. Consumers pass the canonical cart items shape
+ * (`useCart().items` or `cart.items`).
+ *
+ * Pure helper — co-located with the store so `useCheckoutFlow` and the
+ * cart-flow page share one definition.
+ */
+export function selectHasCrossBorderItems(items) {
+  if (!Array.isArray(items)) return false;
+  for (const it of items) {
+    if (it?.supplierType === 'cross_border') return true;
+  }
+  return false;
 }

@@ -1,6 +1,6 @@
 'use client';
 import React, { useMemo, useState } from 'react';
-import styles from './BrandCard.module.css';
+import styles from './CatalogBrandCard.module.css';
 import { cn as cx } from '@/shared/lib/ui-utils';
 
 function getInitial(name) {

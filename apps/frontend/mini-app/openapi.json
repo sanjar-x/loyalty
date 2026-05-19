@@ -17775,65 +17775,6 @@
         }
       }
     },
-    "/api/v1/admin/passports": {
-      "get": {
-        "tags": [
-          "Admin / Passport"
-        ],
-        "summary": "Admin List Passports",
-        "description": "List passports owned by a specific customer (admin walk-in selector).\n\nReturns ``200`` with an empty list when ``identityId`` matches no\npassports — admin UI uses the same empty state for «customer has no\npassport yet» and «no such identity», avoiding a 404 branch on a\nselector that is allowed to be empty.\n\n``includeArchived`` defaults to ``false`` so the selector never\nsurfaces soft-deleted rows by accident; pass ``true`` from the\nadmin audit view if needed.",
-        "operationId": "admin_list_passports_api_v1_admin_passports_get",
-        "security": [
-          {
-            "HTTPBearer": []
-          }
-        ],
-        "parameters": [
-          {
-            "name": "identityId",
-            "in": "query",
-            "required": true,
-            "schema": {
-              "type": "string",
-              "format": "uuid",
-              "title": "Identityid"
-            }
-          },
-          {
-            "name": "includeArchived",
-            "in": "query",
-            "required": false,
-            "schema": {
-              "type": "boolean",
-              "default": false,
-              "title": "Includearchived"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Successful Response",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/PassportListResponse"
-                }
-              }
-            }
-          },
-          "422": {
-            "description": "Validation Error",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
     "/api/v1/orders": {
       "post": {
         "tags": [

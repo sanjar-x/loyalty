@@ -1,7 +1,7 @@
 'use client';
 
 import { useMemo, useState } from 'react';
-import { useParams, useRouter } from 'next/navigation';
+import { useParams } from 'next/navigation';
 
 import styles from './page.module.css';
 import BottomSheet from '@/shared/ui/BottomSheet';
@@ -164,7 +164,6 @@ function ReviewCard({ review }) {
 }
 
 export default function BrandReviewsPage() {
-  const router = useRouter();
   const params = useParams();
 
   const brand = titleize(params?.brand);
@@ -415,11 +414,9 @@ export default function BrandReviewsPage() {
         </main>
 
         <div className={styles.bottomBar}>
-          <button
-            type="button"
-            className={`${styles.bottomBtn} ${styles.bottomBtnPrimary}`}
-            onClick={() => console.log('buyNow', { brand })}
-          >
+          {/* TODO(buy-now/brand): brand-page CTA is not wired — buy-now requires a specific SKU,
+              which the brand-reviews page does not own. Leave silent until product picks the UX. */}
+          <button type="button" className={`${styles.bottomBtn} ${styles.bottomBtnPrimary}`}>
             Купить сейчас
           </button>
           <button

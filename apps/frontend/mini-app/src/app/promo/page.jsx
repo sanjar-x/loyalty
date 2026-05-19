@@ -2,8 +2,8 @@
 import { useState, useEffect } from 'react';
 
 import Footer from '@/widgets/Footer';
-import PointsHistory from '@/entities/promocode';
-import PromoInfoModal from '@/entities/promocode';
+import { PointsHistory } from '@/entities/promocode';
+import { PromoInfoModal } from '@/entities/promocode';
 import { cn } from '@/shared/lib/ui-utils';
 
 import styles from './page.module.css';

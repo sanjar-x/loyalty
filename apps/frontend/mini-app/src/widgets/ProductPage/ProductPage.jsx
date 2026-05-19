@@ -8,9 +8,9 @@ import ProductInfo from '@/entities/product/ui/ProductInfo';
 import ProductSkuSelector from '@/entities/product/ui/ProductSkuSelector';
 import ProductPrice from '@/entities/product/ui/ProductPrice';
 import ProductAddToCart from '@/features/add-to-cart/ui/ProductAddToCart';
-import ProductSection from '@/entities/product';
+import { ProductSection } from '@/entities/product';
 import ProductShippingOptions from '@/entities/product/ui/ProductShippingOptions';
-import ProductBrandsCarousel from '@/entities/brand';
+import { ProductBrandsCarousel } from '@/entities/brand';
 import { useAddCartItemMutation } from '@/entities/cart';
 import {
   useGetProductByIdQuery,
@@ -19,6 +19,7 @@ import {
   useGetProductMediaQuery,
 } from '@/entities/product';
 import { useItemFavorites } from '@/features/favorites';
+import { useBuyNowStore } from '@/features/buy-now-checkout';
 import { mapProductCard } from '@/entities/product';
 import ProductSizes from '@/entities/product/ui/ProductSizes';
 import styles from './page.module.css';
@@ -124,33 +125,6 @@ function getProductPhotoCandidates(product) {
   return result;
 }
 
-function buildDeliveryTextFromProduct(product) {
-  const deliveryRaw = typeof product?.delivery === 'string' ? product.delivery : '';
-  const delivery = deliveryRaw.trim();
-
-  const deliveryDateRaw =
-    typeof product?.deliveryDate === 'string'
-      ? product.deliveryDate
-      : typeof product?.delivery_date === 'string'
-        ? product.delivery_date
-        : '';
-  const deliveryDate = deliveryDateRaw.trim();
-
-  const deliverySubRaw =
-    typeof product?.deliverySub === 'string'
-      ? product.deliverySub
-      : typeof product?.delivery_sub === 'string'
-        ? product.delivery_sub
-        : '';
-  const deliverySub = deliverySubRaw.trim();
-
-  if (deliveryDate && deliverySub) return `${deliveryDate}, ${deliverySub}`;
-  if (deliveryDate && delivery) return `${deliveryDate}, из ${delivery}`;
-  if (deliveryDate) return deliveryDate;
-  if (delivery) return `из ${delivery}`;
-  return '';
-}
-
 // `mapProductCard` was removed — the shared `mapProductCard()` from
 // `lib/format/mapProductCard.js` is used instead. The `recommended`
 // ("Для вас"/"Похожие") sections below use this mapper.
@@ -184,6 +158,11 @@ function extractCategoryInfoFromBreadcrumbs(product) {
 
 export default function ProductPage({ slug }) {
   const router = useRouter();
+
+  // Sprint 1.5 BUY_NOW_ENABLED kill-switch: when truthy, the «Купить
+  // сейчас» CTA below is rendered disabled with an explanatory tooltip
+  // («В корзину» button stays operational). Self-heals via store TTL.
+  const buyNowDisabledReason = useBuyNowStore((s) => s.disabledReason);
 
   const {
     data: fetched,
@@ -413,33 +392,23 @@ export default function ProductPage({ slug }) {
   // currently commented out. Once the module is ready, wire it to
   // `useProductReviewsQuery(slug)` and adapt the shape here.
 
+  /**
+   * FE-1 + FE-6 swap: «Купить сейчас» opens the standalone buy-now sheet
+   * (ADR-010 endpoint) instead of writing to cart and routing to /cart.
+   * Cart isolation (ADR-010 I1) is enforced here — this handler MUST NOT:
+   *   • call addCartItem / mutate /cart endpoints
+   *   • write `localStorage.loyaltymarket_cart_meta_v1`
+   *     (that's cart-display metadata only)
+   *   • router.push('/cart')
+   *
+   * Kill-switch (Sprint 1.5): when the backend has flipped
+   * `BUY_NOW_ENABLED` off, `isDisabledNow()` self-heals on expiry and we
+   * fall back to the cart flow so the customer is not stranded.
+   */
   const handleBuyNow = async (requestedQty) => {
     if (productIdNum == null) return;
     const qty = Math.max(1, Math.min(99, Math.floor(Number(requestedQty) || 1)));
     const skuId = selectedSku?.id ?? resolvedSkuId ?? apiProduct?.defaultSku?.id;
-
-    try {
-      const image = getProductPhotoCandidates(apiProduct)[0] ?? productImages?.[0] ?? '';
-      const meta = {
-        image,
-        size: selectedSku?.skuCode ?? '',
-        skuId: skuId ?? '',
-        shippingText: apiProduct?.delivery ? `Доставка из ${apiProduct.delivery} до РФ 0₽` : '',
-        deliveryText: buildDeliveryTextFromProduct(apiProduct),
-        article: String(
-          selectedSku?.skuCode ?? apiProduct?.defaultSku?.skuCode ?? apiProduct?.id ?? ''
-        ),
-      };
-      const key = 'loyaltymarket_cart_meta_v1';
-      const existingRaw = localStorage.getItem(key);
-      const existing = existingRaw ? JSON.parse(existingRaw) : {};
-      const map = existing && typeof existing === 'object' ? existing : {};
-      map[String(productIdNum)] = meta;
-      localStorage.setItem(key, JSON.stringify(map));
-      window.dispatchEvent(new Event('loyaltymarket_cart_meta_updated'));
-    } catch {
-      // ignore
-    }
 
     if (!skuId) {
       toast.error('Выберите размер');
@@ -451,21 +420,39 @@ export default function ProductPage({ slug }) {
       return;
     }
 
-    try {
-      await addCartItem({ skuId, quantity: qty }).unwrap();
-    } catch (e) {
-      // Without a toast the user doesn't see any reaction to «Купить» (revenue
-      // loss — found in code review). Show the backend message and haptic.
-      console.error('Не удалось добавить в корзину', e);
-      toast.error(humanizeApiError(e) || 'Не удалось добавить в корзину');
+    if (useBuyNowStore.getState().isDisabledNow()) {
+      // Kill-switch active — silent fallback to cart-flow. We don't
+      // touch loyaltymarket_cart_meta_v1 because the cart UI has its
+      // own freshness handling.
       try {
-        window.Telegram?.WebApp?.HapticFeedback?.notificationOccurred?.('error');
-      } catch {
-        /* haptic unavailable — ok */
+        await addCartItem({ skuId, quantity: qty }).unwrap();
+      } catch (e) {
+        toast.error(humanizeApiError(e) || 'Не удалось добавить в корзину');
+        return;
       }
+      router.push('/cart');
       return;
     }
-    router.push('/cart');
+
+    const image = getProductPhotoCandidates(apiProduct)[0] ?? productImages?.[0] ?? '';
+    useBuyNowStore.getState().open({
+      skuId,
+      quantity: qty,
+      productMeta: {
+        name: apiProduct?.name || apiProduct?.title || apiProduct?.defaultSku?.skuCode || 'Товар',
+        image,
+        variantLabel: selectedSku?.skuCode || apiProduct?.defaultSku?.skuCode || '',
+        priceRub: Number(selectedSku?.resolvedPrice ?? apiProduct?.price ?? 0) || 0,
+        // Sprint 1.5 Part 2: mapStorefrontProduct now reads
+        // supplier.type (ADR-011 Gap A). BuyNowSheet's FSM uses it to
+        // insert the PASSPORT step for cross-border SKUs and skip it
+        // for local ones. Defensive fallback to null if backend hasn't
+        // populated the field yet — ConfirmStep handles the resulting
+        // 422 PASSPORT_REQUIRED_FOR_CROSS_BORDER by bouncing to the
+        // PASSPORT step.
+        supplierType: apiProduct?.supplierType ?? null,
+      },
+    });
   };
 
   const copyText = async (text) => {
@@ -793,7 +780,11 @@ export default function ProductPage({ slug }) {
           onToggleFavorite={toggleFavorite}
         />
 
-        <ProductAddToCart onBuyNow={handleBuyNow} />
+        <ProductAddToCart
+          onBuyNow={handleBuyNow}
+          buyNowDisabled={Boolean(buyNowDisabledReason)}
+          buyNowDisabledHint="Buy Now временно недоступен, попробуйте через несколько минут"
+        />
       </Container>
       <Footer />
     </main>

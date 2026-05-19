@@ -1,0 +1,24 @@
+.badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 600;
+  line-height: 1.4;
+}
+
+.pending {
+  background: rgba(17, 17, 17, 0.06);
+  color: rgba(17, 17, 17, 0.65);
+}
+
+.verified {
+  background: rgba(10, 138, 58, 0.12);
+  color: #0a8a3a;
+}
+
+.invalid {
+  background: rgba(204, 51, 51, 0.12);
+  color: #c33;
+}

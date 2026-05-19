@@ -151,6 +151,21 @@ export function mapStorefrontProduct(p) {
   const finalCompareAt =
     typeof oldPriceNum === 'number' ? oldPriceNum : (defaultSku?.compareAtPrice ?? null);
 
+  // Sprint 1.5 Part 2 Gap A: backend now surfaces supplier_type on the
+  // storefront response (StorefrontSupplierResponse.type). Buy-now
+  // checkout branches on it to decide whether to render the PASSPORT
+  // step (ADR-011). Defensive: tolerate both camelCase and snake_case
+  // shapes during the rolling deploy window.
+  const supplierRaw = p.supplier ?? p.supplier_response ?? null;
+  const supplierType =
+    typeof supplierRaw?.type === 'string'
+      ? supplierRaw.type
+      : typeof p.supplierType === 'string'
+        ? p.supplierType
+        : typeof p.supplier_type === 'string'
+          ? p.supplier_type
+          : null;
+
   return {
     id: p.id,
     slug: p.slug || p.id,
@@ -177,6 +192,7 @@ export function mapStorefrontProduct(p) {
     attributes,
     tags: Array.isArray(p.tags) ? p.tags : [],
     version: p.version ?? null,
+    supplierType,
     _raw: p,
   };
 }

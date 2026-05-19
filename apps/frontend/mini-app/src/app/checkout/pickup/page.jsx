@@ -6,7 +6,7 @@ import { cn } from '@/shared/lib/ui-utils';
 
 import Button from '@/shared/ui/Button';
 import Header from '@/widgets/Header';
-import PvzDetailSheet from '@/features/pickup-selection';
+import { PvzDetailSheet } from '@/features/pickup-selection';
 import { useBackHandlerStore } from '@/features/telegram-api';
 import { distanceKm } from '@/features/checkout-flow/lib/geo';
 import { usePvzData } from '@/features/pickup-selection/model/usePvzData';

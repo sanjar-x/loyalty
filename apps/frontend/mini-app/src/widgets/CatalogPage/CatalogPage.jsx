@@ -4,9 +4,9 @@ import { useMemo, useState } from 'react';
 
 import Footer from '@/widgets/Footer';
 import Header from '@/widgets/Header';
-import SearchBar from '@/features/search';
-import CatalogTabs from '@/entities/category';
-import BrandsList from '@/entities/brand';
+import { SearchBar } from '@/features/search';
+import { CatalogTabs } from '@/entities/category';
+import { BrandsList } from '@/entities/brand';
 import CategoryRootCard from '@/entities/category/ui/CategoryRootCard';
 import { useGetCategoryTreeQuery } from '@/entities/category';
 

@@ -3,16 +3,27 @@ import { cn } from '@/shared/lib/ui-utils';
 import styles from './page.module.css';
 
 /**
- * Checkout configuration tiles: Pickup point / Recipient / Customs data.
+ * Checkout configuration tiles: Pickup point / Recipient / Passport.
  * Audit #1: pure presentation component split out of the `checkout/page.jsx`
  * god component — all behavior comes in via props.
+ *
+ * Sprint 1.5 Part 2 (ADR-011):
+ *  • «Данные для таможни» tile renamed to «Паспорт для таможни» and is
+ *    now conditional on `hasCrossBorderItems`. Local-only carts render
+ *    only Pickup + Recipient — there's nothing customs-related to show.
+ *  • Passport sub-label surfaces the masked passport identifier
+ *    («1234 5****0») when a passport is resolved; otherwise «Не выбран».
+ *  • `onOpenPassport` opens `<PassportSheet />` (composed in
+ *    `app/checkout/page.jsx`).
  */
 export default function CheckoutTiles({
   pickup,
   recipient,
+  hasCrossBorderItems = false,
+  passportSummary = null,
   onOpenPickup,
   onOpenRecipient,
-  onOpenCustoms,
+  onOpenPassport,
 }) {
   return (
     <div className={styles.c14}>
@@ -49,20 +60,27 @@ export default function CheckoutTiles({
         <img src="/icons/global/small-arrow.svg" alt="" className={cn(styles.c26, styles.tw8)} />
       </button>
 
-      <button type="button" onClick={onOpenCustoms} className={styles.c27}>
-        <div className={cn(styles.c28, styles.tw9)}>
-          <img
-            src="/icons/global/personalcard.svg"
-            alt="location"
-            className={cn(styles.c29, styles.tw10)}
-          />
-          <div>
-            <div className={styles.c30}>Данные для таможни</div>
-            <div className={styles.c31}>Паспорт и ИНН</div>
+      {hasCrossBorderItems ? (
+        <button
+          type="button"
+          data-checkout-passport-tile="true"
+          onClick={onOpenPassport}
+          className={styles.c27}
+        >
+          <div className={cn(styles.c28, styles.tw9)}>
+            <img
+              src="/icons/global/personalcard.svg"
+              alt="passport"
+              className={cn(styles.c29, styles.tw10)}
+            />
+            <div>
+              <div className={styles.c30}>Паспорт для таможни</div>
+              <div className={styles.c31}>{passportSummary || 'Не выбран'}</div>
+            </div>
           </div>
-        </div>
-        <img src="/icons/global/small-arrow.svg" alt="" className={cn(styles.c32, styles.tw11)} />
-      </button>
+          <img src="/icons/global/small-arrow.svg" alt="" className={cn(styles.c32, styles.tw11)} />
+        </button>
+      ) : null}
     </div>
   );
 }

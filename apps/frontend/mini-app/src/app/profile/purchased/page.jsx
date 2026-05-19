@@ -1,7 +1,7 @@
 'use client';
 import Footer from '@/widgets/Footer';
 import Header from '@/widgets/Header';
-import ProductSection from '@/entities/product';
+import { ProductSection } from '@/entities/product';
 import BottomSheet from '@/shared/ui/BottomSheet';
 import { useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react';
 import { useRouter } from 'next/navigation';

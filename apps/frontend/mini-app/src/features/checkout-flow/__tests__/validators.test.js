@@ -8,11 +8,7 @@ import {
 } from '@/shared/lib/phone';
 import { isValidLuhn } from '@/shared/lib/card';
 import { validateRecipient } from '@/entities/recipient';
-import {
-  validateCardDraft,
-  validateCustomsStrict,
-  validateRecipientForOrder,
-} from '../lib/validators';
+import { validateCardDraft, validateRecipientForOrder } from '../lib/validators';
 
 describe('isValidLuhn', () => {
   it('rejects too-short numbers', () => {
@@ -245,120 +241,54 @@ describe('validateRecipient — ФИО (CHK-002, latin/cyrillic/punct)', () => {
   });
 });
 
-describe('validateCustomsStrict — date code matrix (CHK-001)', () => {
-  const base = {
-    passportSeries: '1234',
-    passportNumber: '567890',
-    issueDate: '15.03.2015',
-    birthDate: '01.01.1985',
-    inn: '123456789012',
-  };
-
-  it('happy path → ok:true', () => {
-    expect(validateCustomsStrict(base).ok).toBe(true);
-  });
-  it('empty issueDate → required', () => {
-    expect(validateCustomsStrict({ ...base, issueDate: '' }).errors.issueDate).toBe('required');
-  });
-  it('invalid format (31.02.1990) → invalid', () => {
-    expect(validateCustomsStrict({ ...base, issueDate: '31.02.1990' }).errors.issueDate).toBe(
-      'invalid'
-    );
-  });
-  it('non-leap Feb 29 → invalid', () => {
-    expect(validateCustomsStrict({ ...base, birthDate: '29.02.2023' }).errors.birthDate).toBe(
-      'invalid'
-    );
-  });
-  it('year < 1900 → invalid', () => {
-    expect(validateCustomsStrict({ ...base, birthDate: '01.01.1850' }).errors.birthDate).toBe(
-      'invalid'
-    );
-  });
-  it('issueDate in future → future', () => {
-    const futureYear = new Date().getFullYear() + 1;
-    expect(
-      validateCustomsStrict({ ...base, issueDate: `01.01.${futureYear}` }).errors.issueDate
-    ).toBe('future');
-  });
-  it('issueDate before birthDate → before_birth', () => {
-    expect(
-      validateCustomsStrict({
-        ...base,
-        issueDate: '01.01.1980',
-        birthDate: '01.01.1990',
-      }).errors.issueDate
-    ).toBe('before_birth');
-  });
-  it('missing passport/inn → required', () => {
-    const r = validateCustomsStrict({});
-    expect(r.errors.passportSeries).toBe('required');
-    expect(r.errors.passportNumber).toBe('required');
-    expect(r.errors.inn).toBe('required');
-  });
-});
-
-describe('validateRecipientForOrder — strict server-payload check', () => {
+describe('validateRecipientForOrder — shipping-only payload check (ADR-011)', () => {
   const validRecipient = {
     fullName: 'Иван Иванов',
     phoneDigits: '9990001122',
     email: 'ivan@example.ru',
     country: 'RU',
   };
-  const validCustoms = {
-    passportSeries: '1234',
-    passportNumber: '567890',
-    issueDate: '01.06.2015',
-    birthDate: '15.01.1990',
-    inn: '123456789012',
-  };
 
-  it('happy path → ok:true (RU dates accepted)', () => {
-    expect(
-      validateRecipientForOrder({
-        recipient: validRecipient,
-        customs: validCustoms,
-      }).ok
-    ).toBe(true);
+  it('happy path → ok:true', () => {
+    expect(validateRecipientForOrder({ recipient: validRecipient }).ok).toBe(true);
   });
+
   it('UZ recipient happy path', () => {
     expect(
       validateRecipientForOrder({
         recipient: { ...validRecipient, country: 'UZ', phoneDigits: '901234567' },
-        customs: validCustoms,
       }).ok
     ).toBe(true);
   });
-  it('missing customs → required for each', () => {
-    const r = validateRecipientForOrder({
-      recipient: validRecipient,
-      customs: {},
-    });
-    expect(r.errors.passportSeries).toBe('required');
-    expect(r.errors.inn).toBe('required');
-  });
-  it('invalid passport length → invalid', () => {
+
+  it('missing fullName → required', () => {
     expect(
-      validateRecipientForOrder({
-        recipient: validRecipient,
-        customs: { ...validCustoms, passportNumber: '123' },
-      }).errors.passportNumber
-    ).toBe('invalid');
+      validateRecipientForOrder({ recipient: { ...validRecipient, fullName: '' } }).errors.fullName
+    ).toBe('required');
   });
-  it('ISO date (YYYY-MM-DD) rejected — UI is RU-only', () => {
-    expect(
-      validateRecipientForOrder({
-        recipient: validRecipient,
-        customs: { ...validCustoms, birthDate: '1990-01-15' },
-      }).errors.birthDate
-    ).toBe('invalid');
-  });
+
   it('RU phone not 10 digits → invalid', () => {
     expect(
       validateRecipientForOrder({
         recipient: { ...validRecipient, phoneDigits: '999000' },
-        customs: validCustoms,
       }).errors.phoneDigits
     ).toBe('invalid');
+  });
+
+  it('missing email → required', () => {
+    expect(
+      validateRecipientForOrder({ recipient: { ...validRecipient, email: '' } }).errors.email
+    ).toBe('required');
+  });
+
+  it('passport / customs fields are NOT validated here anymore (ADR-011)', () => {
+    // Customs migrated to features/passport-form/lib/validators — see
+    // features/passport-form/__tests__/validators.test.js for coverage.
+    const r = validateRecipientForOrder({ recipient: validRecipient });
+    expect(r.errors.passportSeries).toBeUndefined();
+    expect(r.errors.passportNumber).toBeUndefined();
+    expect(r.errors.inn).toBeUndefined();
+    expect(r.errors.birthDate).toBeUndefined();
+    expect(r.errors.issueDate).toBeUndefined();
   });
 });

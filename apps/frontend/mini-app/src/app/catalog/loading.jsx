@@ -1,9 +1,9 @@
 'use client';
 
-import SearchBar from '@/features/search';
+import { SearchBar } from '@/features/search';
 import Footer from '@/widgets/Footer';
 import Header from '@/widgets/Header';
-import CatalogTabs from '@/entities/category';
+import { CatalogTabs } from '@/entities/category';
 
 import styles from './page.module.css';
 

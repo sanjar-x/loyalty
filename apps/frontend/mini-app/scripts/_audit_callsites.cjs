@@ -32,7 +32,6 @@ const allFiles = [
   ...walk(path.join(root, 'lib')),
 ];
 
-// 1. import qilinganlarni yig'ish
 const importsByFile = new Map();
 const allImported = new Set();
 const importRe = /import\s+(?:[^'"]+\s+from\s+)?['"]@\/lib\/store\/api['"]/g;

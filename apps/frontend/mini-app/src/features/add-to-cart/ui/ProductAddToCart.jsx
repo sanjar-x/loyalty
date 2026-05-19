@@ -12,7 +12,12 @@ const clampQty = (value) => {
   return Math.max(MIN_QTY, Math.min(MAX_QTY, n));
 };
 
-export default function ProductAddToCart({ onBuyNow, initialQuantity = 1 }) {
+export default function ProductAddToCart({
+  onBuyNow,
+  initialQuantity = 1,
+  buyNowDisabled = false,
+  buyNowDisabledHint = '',
+}) {
   const [mode, setMode] = useState('simple');
   const [quantity, setQuantity] = useState(() => clampQty(initialQuantity));
   const [isBuying, setIsBuying] = useState(false);
@@ -55,8 +60,9 @@ export default function ProductAddToCart({ onBuyNow, initialQuantity = 1 }) {
           type="button"
           className={styles.primary}
           onClick={handleBuy}
-          disabled={isBuying}
-          aria-disabled={isBuying}
+          disabled={isBuying || buyNowDisabled}
+          aria-disabled={isBuying || buyNowDisabled}
+          title={buyNowDisabled ? buyNowDisabledHint || undefined : undefined}
         >
           Купить сейчас
         </button>

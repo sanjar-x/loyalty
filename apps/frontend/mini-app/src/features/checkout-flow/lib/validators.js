@@ -1,18 +1,21 @@
 /**
- * Checkout form validators (card draft, customs, recipient-for-order
- * orchestrator). Sprint 2: extracted from shared/lib/validators into its own domain.
+ * Cart-flow checkout validators.
  *
- * Business-bound: these validators know the specific fields of the checkout form
- * (cvc, holder, exp, passportSeries, passportNumber, issueDate, birthDate,
- * inn). Generic plumbing lives in shared/lib/{card,phone}.
+ * Scope post-ADR-011:
+ *   • `validateCardDraft`           — Luhn + expiry + cvc + holder for
+ *                                     the CardSheet.
+ *   • `validateRecipientForOrder`   — wrapper around
+ *                                     `entities/recipient.validateRecipient`
+ *                                     used by `useCheckoutFlow.ensureRecipient`
+ *                                     before POST /recipients.
+ *
+ * The customs validators (`validateCustoms`, `validateCustomsStrict`)
+ * and their `passport*` / `inn` / `birthDate` fields have moved to the
+ * Passport bounded context (`features/passport-form/lib/validators.js`).
+ * Cart-flow no longer collects customs in its own state.
  */
 
-import {
-  isValidLuhn,
-  normalizeCardNumberDigits,
-  normalizeExpiry,
-} from '@/shared/lib/card';
-import { parseRuDate } from '@/shared/lib/date-format';
+import { isValidLuhn, normalizeCardNumberDigits, normalizeExpiry } from '@/shared/lib/card';
 import { validateRecipient } from '@/entities/recipient';
 
 /**
@@ -66,88 +69,16 @@ export function validateCardDraft(draft) {
 }
 
 /**
- * Customs (customs data) soft validator — format-only in the UI form.
- * Empty fields are OK; if provided, the format is mandatory.
+ * Recipient validation for cart-flow's `placeOrder` pre-flight.
+ *
+ * Post-ADR-011 the orchestrator only checks shipping coordinates —
+ * passport documents are validated separately by `features/passport-form`
+ * and resolved via `useCheckoutStore.passportId`. `payAction.js` /
+ * useCheckoutFlow check that the passport is attached before posting
+ * /cart/checkout when the cart has any cross-border item.
  */
-export function validateCustoms(draft) {
-  const errors = {};
-  if (!draft) return errors;
-
-  const inn = String(draft.inn || '').replace(/\D/g, '');
-  if (inn && inn.length !== 12) errors.inn = 'invalid';
-
-  const passportSeries = String(draft.passportSeries || '').replace(/\D/g, '');
-  if (passportSeries && passportSeries.length !== 4) {
-    errors.passportSeries = 'invalid';
-  }
-
-  const passportNumber = String(draft.passportNumber || '').replace(/\D/g, '');
-  if (passportNumber && passportNumber.length !== 6) {
-    errors.passportNumber = 'invalid';
-  }
-
-  return errors;
-}
-
-/**
- * Customs strict validator — all fields required, with date checks.
- * Guards the UI Customs sheet's "Save" button.
- */
-export function validateCustomsStrict(customs) {
-  const errors = {};
-  const c = customs || {};
-
-  const passportSeries = String(c.passportSeries || '').replace(/\D/g, '');
-  if (!passportSeries) errors.passportSeries = 'required';
-  else if (passportSeries.length !== 4) errors.passportSeries = 'invalid';
-
-  const passportNumber = String(c.passportNumber || '').replace(/\D/g, '');
-  if (!passportNumber) errors.passportNumber = 'required';
-  else if (passportNumber.length !== 6) errors.passportNumber = 'invalid';
-
-  const rawIssue = String(c.issueDate || '').trim();
-  const rawBirth = String(c.birthDate || '').trim();
-  const issueDateIso = parseRuDate(rawIssue);
-  const birthDateIso = parseRuDate(rawBirth);
-
-  if (!rawIssue) errors.issueDate = 'required';
-  else if (!issueDateIso) errors.issueDate = 'invalid';
-
-  if (!rawBirth) errors.birthDate = 'required';
-  else if (!birthDateIso) errors.birthDate = 'invalid';
-
-  if (issueDateIso && birthDateIso) {
-    if (new Date(issueDateIso) < new Date(birthDateIso)) {
-      errors.issueDate = 'before_birth';
-    }
-  }
-  if (issueDateIso) {
-    const today = new Date();
-    today.setHours(23, 59, 59, 999);
-    if (new Date(issueDateIso) > today) {
-      errors.issueDate = 'future';
-    }
-  }
-
-  const inn = String(c.inn || '').replace(/\D/g, '');
-  if (!inn) errors.inn = 'required';
-  else if (inn.length !== 12) errors.inn = 'invalid';
-
-  if (Object.keys(errors).length === 0) return { ok: true, errors: {} };
-  return { ok: false, errors };
-}
-
-/**
- * Orchestrator — strict validator for the POST /api/v1/recipients payload.
- * `useCheckoutFlow.ensureRecipient` runs through this function: recipient
- * + customs are all required and valid.
- */
-export function validateRecipientForOrder({ recipient, customs } = {}) {
-  const errors = {
-    ...validateRecipient(recipient || {}),
-    ...validateCustomsStrict(customs).errors,
-  };
-
+export function validateRecipientForOrder({ recipient } = {}) {
+  const errors = validateRecipient(recipient || {});
   if (Object.keys(errors).length === 0) return { ok: true, errors: {} };
   return { ok: false, errors };
 }

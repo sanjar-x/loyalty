@@ -46,6 +46,11 @@ export function useLeafletPvzMap({
   selectedPvzId,
   setViewportArgs,
   onMarkerClickRef,
+  // Sprint 1 buy-now: container DOM id is a parameter so two
+  // independent map instances can coexist (the full-screen
+  // /checkout/pickup page and the inline BuyNowSheet/PickupStep).
+  // Default preserves the historical behaviour of the cart-flow page.
+  elementId = 'pickup-leaflet-map',
 }) {
   const leafletRef = useRef(null);
   const mapRef = useRef(null);
@@ -338,7 +343,7 @@ export function useLeafletPvzMap({
         iconFixedRef.current = true;
       }
 
-      const el = document.getElementById('pickup-leaflet-map');
+      const el = document.getElementById(elementId);
       if (!el) return;
 
       // If a map already exists, do not create a new one.
@@ -489,7 +494,7 @@ export function useLeafletPvzMap({
     // pvzPointById/setViewportArgs intentionally not in deps — same as in the
     // original page (map should re-init only when step/searchParamsKey/destroyMap change).
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [step, searchParamsKey, destroyMap]);
+  }, [step, searchParamsKey, destroyMap, elementId]);
 
   /* ── Marker diff effect ── */
   // When backend `pvzPoints` change, we **diff** the markers:

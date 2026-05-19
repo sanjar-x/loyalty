@@ -16,9 +16,9 @@ import { decideCheckoutAction } from '@/features/checkout-flow/lib/payAction';
 import { providerLabel } from '@/entities/pickup-point/lib/providerLabels';
 import { formatMoney } from '@/shared/lib/money';
 import { toast } from '@/shared/ui/Toaster';
-import RecipientSheet from '@/features/recipient-form';
-import CustomsSheet from '@/features/checkout-flow/ui/sheets/CustomsSheet';
-import CardSheet from '@/features/checkout-flow/ui/sheets/CardSheet';
+import { RecipientSheet } from '@/features/recipient-form';
+import { CardSheet, PassportSheet, selectHasCrossBorderItems } from '@/features/checkout-flow';
+import { maskPassportNumber, useGetPassportQuery } from '@/entities/passport';
 
 import CheckoutTiles from '@/widgets/CheckoutPage/CheckoutTiles';
 import CheckoutItemsList from '@/widgets/CheckoutPage/CheckoutItemsList';
@@ -38,11 +38,12 @@ import styles from './page.module.css';
  *  • presentation       → `./{CheckoutTiles,CheckoutItemsList,PaymentMethodPicker,
  *                            CheckoutSummary,PayButtonFooter}.jsx`
  *
- * Recipient/customs/promo/payment — `useCheckoutStore` (sessionStorage
- * persist). Card details are not stored — in the spirit of PCI DSS.
+ * Recipient / passport (ADR-011) / promo / payment — `useCheckoutStore`
+ * (sessionStorage persist). Card details are not stored — in the spirit
+ * of PCI DSS. Customs documents migrated to the Passport bounded context
+ * — Sprint 1.5 Part 2.
  *
  * @typedef {{ fullName: string, phoneDigits: string, email: string }} CheckoutRecipient
- * @typedef {{ passportSeries: string, passportNumber: string, issueDate: string, birthDate: string, inn: string }} CheckoutCustomsData
  */
 
 export default function CheckoutPage() {
@@ -62,23 +63,39 @@ function CheckoutPageInner() {
   const { pickup, openPickupSelection } = usePickupFromUrl();
   useCheckoutPageEffects(flow);
 
-  // Recipient/customs/promo/payment — Zustand store (sessionStorage persist).
+  // Recipient / passport / promo / payment — Zustand store
+  // (sessionStorage persist).
   const recipient = useCheckoutStore((s) => s.recipient);
   const setRecipient = useCheckoutStore((s) => s.setRecipient);
   const setSelectedRecipientId = useCheckoutStore((s) => s.setSelectedRecipientId);
-  const customs = useCheckoutStore((s) => s.customs);
-  const setCustoms = useCheckoutStore((s) => s.setCustoms);
+  const passportId = useCheckoutStore((s) => s.passportId);
+  const setPassportId = useCheckoutStore((s) => s.setPassportId);
   const promo = useCheckoutStore((s) => s.promo);
   const paymentMethod = useCheckoutStore((s) => s.paymentMethod);
   const setPaymentMethod = useCheckoutStore((s) => s.setPaymentMethod);
 
+  // ADR-011: cart-flow renders the Passport tile / sheet only when the
+  // cart contains at least one cross-border item. `selectHasCrossBorderItems`
+  // is exported from the store so other consumers (tests, future widgets)
+  // share one definition.
+  const hasCrossBorderItems = useMemo(() => selectHasCrossBorderItems(items), [items]);
+
+  // PII-minimised passport summary for the CheckoutTiles tile. Fetched
+  // lazily — only when a passport is resolved.
+  const { data: selectedPassport } = useGetPassportQuery(passportId);
+  const passportSummary = useMemo(() => {
+    if (!selectedPassport) return null;
+    return maskPassportNumber(selectedPassport.passportSerial, selectedPassport.passportNumber);
+  }, [selectedPassport]);
+
   // Sheet open states (CHK-020/023).
   const [isRecipientModalOpen, setIsRecipientModalOpen] = useState(false);
-  const [isCustomsModalOpen, setIsCustomsModalOpen] = useState(false);
+  const [isPassportModalOpen, setIsPassportModalOpen] = useState(false);
   const [isCardModalOpen, setIsCardModalOpen] = useState(false);
 
   const openRecipientModal = () => setIsRecipientModalOpen(true);
-  const openCustomsModal = () => setIsCustomsModalOpen(true);
+  const openPassportModal = useCallback(() => setIsPassportModalOpen(true), []);
+  const closePassportModal = useCallback(() => setIsPassportModalOpen(false), []);
   const openCardModal = useCallback(() => setIsCardModalOpen(true), []);
   const closeCardModal = useCallback(() => setIsCardModalOpen(false), []);
 
@@ -217,7 +234,8 @@ function CheckoutPageInner() {
       isPickupSelected: flow.isPickupSelected,
       isQuoteValid: flow.isQuoteValid,
       recipient,
-      customs,
+      hasCrossBorderItems,
+      passportId,
       validate: validateRecipientForOrder,
     });
     switch (action.type) {
@@ -241,9 +259,10 @@ function CheckoutPageInner() {
         toast.error(action.message);
         setIsRecipientModalOpen(true);
         return;
-      case 'NEED_CUSTOMS':
+      case 'NEED_PASSPORT':
+        // ADR-011: cross-border cart without resolved passportId.
         toast.error(action.message);
-        setIsCustomsModalOpen(true);
+        setIsPassportModalOpen(true);
         return;
       case 'READY':
       default:
@@ -251,7 +270,7 @@ function CheckoutPageInner() {
         // are surfaced through the `useCheckoutPageEffects` toast watcher.
         await flow.placeOrder();
     }
-  }, [flow, selectedQuantity, recipient, customs, router]);
+  }, [flow, selectedQuantity, recipient, hasCrossBorderItems, passportId, router]);
 
   return (
     <div className={styles.c2}>
@@ -284,9 +303,11 @@ function CheckoutPageInner() {
           <CheckoutTiles
             pickup={pickup}
             recipient={recipient}
+            hasCrossBorderItems={hasCrossBorderItems}
+            passportSummary={passportSummary}
             onOpenPickup={() => router.push(openPickupSelection)}
             onOpenRecipient={openRecipientModal}
-            onOpenCustoms={openCustomsModal}
+            onOpenPassport={openPassportModal}
           />
 
           <CheckoutItemsList
@@ -349,14 +370,13 @@ function CheckoutPageInner() {
         }}
       />
 
-      <CustomsSheet
-        open={isCustomsModalOpen}
-        onClose={() => setIsCustomsModalOpen(false)}
-        initialValue={customs}
-        onSave={(payload) => {
-          setCustoms(payload);
-          setIsCustomsModalOpen(false);
-          toast.success('Данные сохранены');
+      <PassportSheet
+        open={isPassportModalOpen}
+        onClose={closePassportModal}
+        selectedId={passportId}
+        onResolved={(id) => {
+          setPassportId(id);
+          toast.success('Паспорт выбран');
         }}
       />
 

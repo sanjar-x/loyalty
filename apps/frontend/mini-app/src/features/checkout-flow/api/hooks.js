@@ -21,6 +21,11 @@ export const useInitiateCheckoutMutation = () => {
         pickupPointId: body?.pickupPointId,
         pickupCarrier: body?.pickupCarrier,
         recipientId: body?.recipientId,
+        // ADR-011: passportId is required by handler-level invariant
+        // I2 when any cart item is cross-border. We forward whatever
+        // the caller resolved (null for local-only orders so backend's
+        // Optional schema accepts the payload).
+        passportId: body?.passportId ?? null,
       },
     });
   };
