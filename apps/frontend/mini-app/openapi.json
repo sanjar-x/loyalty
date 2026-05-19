@@ -17546,6 +17546,235 @@
         }
       }
     },
+    "/api/v1/passports": {
+      "post": {
+        "tags": [
+          "Passports"
+        ],
+        "summary": "Create Passport",
+        "operationId": "create_passport_api_v1_passports_post",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreatePassportRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CreatePassportResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "get": {
+        "tags": [
+          "Passports"
+        ],
+        "summary": "List My Passports",
+        "operationId": "list_my_passports_api_v1_passports_get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "includeArchived",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "boolean",
+              "default": false,
+              "title": "Includearchived"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PassportListResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/passports/{passportId}": {
+      "get": {
+        "tags": [
+          "Passports"
+        ],
+        "summary": "Get Passport",
+        "operationId": "get_passport_api_v1_passports__passportId__get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "passportId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Passportid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PassportSchema"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "patch": {
+        "tags": [
+          "Passports"
+        ],
+        "summary": "Update Passport",
+        "operationId": "update_passport_api_v1_passports__passportId__patch",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "passportId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Passportid"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdatePassportRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "Passports"
+        ],
+        "summary": "Archive Passport",
+        "description": "Archive (soft-delete) a passport.\n\nOrders that reference the archived passport retain their\n``passport_snapshot`` JSONB — history is preserved. ``passport_id``\nFK on orders is ``ON DELETE SET NULL`` for safety, but archive\ndoes NOT actually delete the row; only ``is_archived=true``.",
+        "operationId": "archive_passport_api_v1_passports__passportId__delete",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "passportId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Passportid"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/orders": {
       "post": {
         "tags": [
@@ -18876,6 +19105,19 @@
             "minimum": 0.0,
             "title": "Deliveryamount",
             "default": 0
+          },
+          "passportId": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Passportid",
+            "description": "ID of the customs Passport (see /api/v1/passports). REQUIRED at handler-level when any walk-in item is cross-border; optional for local-only walk-ins."
           }
         },
         "type": "object",
@@ -18890,7 +19132,7 @@
           "idempotencyKey"
         ],
         "title": "AdminCreateWalkInOrderRequest",
-        "description": "Payload for ``POST /admin/orders`` (walk-in create)."
+        "description": "Payload for ``POST /admin/orders`` (walk-in create).\n\nSprint 1.5 Part 2 / ADR-011 — ``passportId`` field added (optional;\nREQUIRED at handler level when any item is CROSS_BORDER). Admin\npre-creates the passport via ``POST /api/v1/passports`` (using the\nwalk-in customer's identity_id once provisioned)."
       },
       "AdminCreateWalkInOrderResponse": {
         "properties": {
@@ -19419,6 +19661,16 @@
             "anyOf": [
               {
                 "$ref": "#/components/schemas/RecipientSnapshotSchema"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "passportSnapshot": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/PassportSnapshotSchema"
               },
               {
                 "type": "null"
@@ -21727,6 +21979,19 @@
             "format": "uuid",
             "title": "Recipientid"
           },
+          "passportId": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Passportid",
+            "description": "ID of the customs Passport (see /api/v1/passports). REQUIRED at handler-level for cross-border SKUs; optional for LOCAL-only orders."
+          },
           "pickupCarrier": {
             "type": "string",
             "maxLength": 16,
@@ -21772,7 +22037,7 @@
           "idempotencyKey"
         ],
         "title": "BuyNowOrderRequest",
-        "description": "Express-checkout payload: a single SKU goes straight to Order.\n\nNo backing cart row — front-end collects sku/quantity/recipient/\npickup/delivery_quote in a one-shot mini-checkout sheet on the\nproduct page. Response shape matches :class:`CreateOrderResponse`\nso the front-end branches once on ``auto_captured``."
+        "description": "Express-checkout payload: a single SKU goes straight to Order.\n\nNo backing cart row — front-end collects sku/quantity/recipient/\npassport/pickup/delivery_quote in a one-shot mini-checkout sheet\non the product page. Response shape matches\n:class:`CreateOrderResponse` so the front-end branches once on\n``auto_captured``.\n\nSprint 1.5 Part 2 / ADR-011 — ``passportId`` field added. Required\nby domain invariant when any item is CROSS_BORDER (handler raises\n422 ``PASSPORT_REQUIRED_FOR_CROSS_BORDER``); optional otherwise.\nWire-level ``Optional`` lets local-only Buy Now flows omit it."
       },
       "CalculateRatesRequest": {
         "properties": {
@@ -23844,6 +24109,19 @@
             ],
             "title": "Deliveryquoteid",
             "description": "Server-trusted id of the quote returned by /storefront/logistics/rates/quote. When present the priced shipping amount is included in the payment authorization. Omit for orders without a priced shipping line (legacy clients)."
+          },
+          "passportId": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Passportid",
+            "description": "ID of the customs Passport (see /api/v1/passports). REQUIRED at handler-level when the cart contains any cross-border SKU (ADR-011); optional for local-only carts."
           }
         },
         "type": "object",
@@ -23901,6 +24179,75 @@
           "currency"
         ],
         "title": "CreateOrderResponse"
+      },
+      "CreatePassportRequest": {
+        "properties": {
+          "fullNameRu": {
+            "type": "string",
+            "maxLength": 255,
+            "minLength": 1,
+            "title": "Fullnameru"
+          },
+          "fullNameLat": {
+            "type": "string",
+            "maxLength": 255,
+            "minLength": 1,
+            "title": "Fullnamelat"
+          },
+          "passportSerial": {
+            "type": "string",
+            "maxLength": 4,
+            "minLength": 4,
+            "title": "Passportserial"
+          },
+          "passportNumber": {
+            "type": "string",
+            "maxLength": 6,
+            "minLength": 6,
+            "title": "Passportnumber"
+          },
+          "passportIssueDate": {
+            "type": "string",
+            "format": "date",
+            "title": "Passportissuedate"
+          },
+          "birthDate": {
+            "type": "string",
+            "format": "date",
+            "title": "Birthdate"
+          },
+          "inn": {
+            "type": "string",
+            "maxLength": 12,
+            "minLength": 12,
+            "title": "Inn"
+          }
+        },
+        "type": "object",
+        "required": [
+          "fullNameRu",
+          "fullNameLat",
+          "passportSerial",
+          "passportNumber",
+          "passportIssueDate",
+          "birthDate",
+          "inn"
+        ],
+        "title": "CreatePassportRequest"
+      },
+      "CreatePassportResponse": {
+        "properties": {
+          "passportId": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Passportid"
+          }
+        },
+        "type": "object",
+        "required": [
+          "passportId"
+        ],
+        "title": "CreatePassportResponse"
       },
       "CreateProviderAccountRequest": {
         "properties": {
@@ -23967,34 +24314,6 @@
             "maxLength": 255,
             "minLength": 3,
             "title": "Email"
-          },
-          "passportSerial": {
-            "type": "string",
-            "maxLength": 4,
-            "minLength": 4,
-            "title": "Passportserial"
-          },
-          "passportNumber": {
-            "type": "string",
-            "maxLength": 6,
-            "minLength": 6,
-            "title": "Passportnumber"
-          },
-          "passportIssueDate": {
-            "type": "string",
-            "format": "date",
-            "title": "Passportissuedate"
-          },
-          "birthDate": {
-            "type": "string",
-            "format": "date",
-            "title": "Birthdate"
-          },
-          "inn": {
-            "type": "string",
-            "maxLength": 12,
-            "minLength": 12,
-            "title": "Inn"
           }
         },
         "type": "object",
@@ -24002,12 +24321,7 @@
           "fullNameRu",
           "fullNameLat",
           "phone",
-          "email",
-          "passportSerial",
-          "passportNumber",
-          "passportIssueDate",
-          "birthDate",
-          "inn"
+          "email"
         ],
         "title": "CreateRecipientRequest"
       },
@@ -26423,34 +26737,6 @@
             "maxLength": 255,
             "minLength": 3,
             "title": "Email"
-          },
-          "passportSerial": {
-            "type": "string",
-            "maxLength": 4,
-            "minLength": 4,
-            "title": "Passportserial"
-          },
-          "passportNumber": {
-            "type": "string",
-            "maxLength": 6,
-            "minLength": 6,
-            "title": "Passportnumber"
-          },
-          "passportIssueDate": {
-            "type": "string",
-            "format": "date",
-            "title": "Passportissuedate"
-          },
-          "birthDate": {
-            "type": "string",
-            "format": "date",
-            "title": "Birthdate"
-          },
-          "inn": {
-            "type": "string",
-            "maxLength": 12,
-            "minLength": 12,
-            "title": "Inn"
           }
         },
         "type": "object",
@@ -26458,15 +26744,10 @@
           "fullNameRu",
           "fullNameLat",
           "phone",
-          "email",
-          "passportSerial",
-          "passportNumber",
-          "passportIssueDate",
-          "birthDate",
-          "inn"
+          "email"
         ],
         "title": "InlineRecipientSchema",
-        "description": "Customs PII captured inline by admin (no backing Recipient row).\n\nField-level format checks live in the domain ``RecipientSnapshot``\n(passport 4+6, INN 12-digit, E.164 phone, email regex) and surface\nhere as a 422 if violated."
+        "description": "Shipping recipient captured inline by admin (no backing Recipient row).\n\nPost-Sprint-1.5 Part 2 / ADR-011: customs PII removed — admin\nattaches a passport via ``AdminCreateWalkInOrderRequest.passportId``\n(the passport must exist in the ``passports`` table). Field-level\nformat checks live in the domain ``RecipientSnapshot`` (E.164\nphone, email regex) and surface here as a 422 if violated."
       },
       "IntakeStatusResponse": {
         "properties": {
@@ -28162,6 +28443,169 @@
         ],
         "title": "ParcelSchema",
         "description": "Used by the admin/pricing /rates endpoint where the caller knows\nreal weights (e.g. after warehouse intake). The Checkout flow does\nNOT use this schema — it goes through ``/rates/quote`` instead."
+      },
+      "PassportListResponse": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/PassportSchema"
+            },
+            "type": "array",
+            "title": "Items"
+          }
+        },
+        "type": "object",
+        "required": [
+          "items"
+        ],
+        "title": "PassportListResponse"
+      },
+      "PassportSchema": {
+        "properties": {
+          "passportId": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Passportid"
+          },
+          "fullNameRu": {
+            "type": "string",
+            "title": "Fullnameru"
+          },
+          "fullNameLat": {
+            "type": "string",
+            "title": "Fullnamelat"
+          },
+          "passportSerial": {
+            "type": "string",
+            "title": "Passportserial"
+          },
+          "passportNumber": {
+            "type": "string",
+            "title": "Passportnumber"
+          },
+          "passportIssueDate": {
+            "type": "string",
+            "format": "date",
+            "title": "Passportissuedate"
+          },
+          "birthDate": {
+            "type": "string",
+            "format": "date",
+            "title": "Birthdate"
+          },
+          "inn": {
+            "type": "string",
+            "title": "Inn"
+          },
+          "validationStatus": {
+            "type": "string",
+            "title": "Validationstatus"
+          },
+          "validationFailedReason": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Validationfailedreason"
+          },
+          "isArchived": {
+            "type": "boolean",
+            "title": "Isarchived"
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Createdat"
+          },
+          "updatedAt": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Updatedat"
+          },
+          "version": {
+            "type": "integer",
+            "title": "Version",
+            "default": 0
+          }
+        },
+        "type": "object",
+        "required": [
+          "passportId",
+          "fullNameRu",
+          "fullNameLat",
+          "passportSerial",
+          "passportNumber",
+          "passportIssueDate",
+          "birthDate",
+          "inn",
+          "validationStatus",
+          "validationFailedReason",
+          "isArchived",
+          "createdAt",
+          "updatedAt"
+        ],
+        "title": "PassportSchema"
+      },
+      "PassportSnapshotSchema": {
+        "properties": {
+          "passportId": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Passportid"
+          },
+          "fullNameRu": {
+            "type": "string",
+            "title": "Fullnameru"
+          },
+          "fullNameLat": {
+            "type": "string",
+            "title": "Fullnamelat"
+          },
+          "passportSerial": {
+            "type": "string",
+            "title": "Passportserial"
+          },
+          "passportNumber": {
+            "type": "string",
+            "title": "Passportnumber"
+          },
+          "passportIssueDate": {
+            "type": "string",
+            "format": "date",
+            "title": "Passportissuedate"
+          },
+          "birthDate": {
+            "type": "string",
+            "format": "date",
+            "title": "Birthdate"
+          },
+          "inn": {
+            "type": "string",
+            "title": "Inn"
+          },
+          "validationStatus": {
+            "type": "string",
+            "title": "Validationstatus"
+          }
+        },
+        "type": "object",
+        "required": [
+          "passportId",
+          "fullNameRu",
+          "fullNameLat",
+          "passportSerial",
+          "passportNumber",
+          "passportIssueDate",
+          "birthDate",
+          "inn",
+          "validationStatus"
+        ],
+        "title": "PassportSnapshotSchema",
+        "description": "Customs PII frozen on the order at checkout (ADR-011).\n\nAdmin-only. Frontend masks ``passportSerial`` / ``passportNumber``\n/ ``inn`` in the UI (last 2-4 digits). Never surfaced via the\ncustomer order endpoint."
       },
       "PaymentIntentSchema": {
         "properties": {
@@ -30487,43 +30931,6 @@
             "type": "string",
             "title": "Email"
           },
-          "passportSerial": {
-            "type": "string",
-            "title": "Passportserial"
-          },
-          "passportNumber": {
-            "type": "string",
-            "title": "Passportnumber"
-          },
-          "passportIssueDate": {
-            "type": "string",
-            "format": "date",
-            "title": "Passportissuedate"
-          },
-          "birthDate": {
-            "type": "string",
-            "format": "date",
-            "title": "Birthdate"
-          },
-          "inn": {
-            "type": "string",
-            "title": "Inn"
-          },
-          "validationStatus": {
-            "type": "string",
-            "title": "Validationstatus"
-          },
-          "validationFailedReason": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Validationfailedreason"
-          },
           "isArchived": {
             "type": "boolean",
             "title": "Isarchived"
@@ -30551,13 +30958,6 @@
           "fullNameLat",
           "phone",
           "email",
-          "passportSerial",
-          "passportNumber",
-          "passportIssueDate",
-          "birthDate",
-          "inn",
-          "validationStatus",
-          "validationFailedReason",
           "isArchived",
           "createdAt",
           "updatedAt"
@@ -30586,28 +30986,6 @@
           "email": {
             "type": "string",
             "title": "Email"
-          },
-          "passportSerial": {
-            "type": "string",
-            "title": "Passportserial"
-          },
-          "passportNumber": {
-            "type": "string",
-            "title": "Passportnumber"
-          },
-          "passportIssueDate": {
-            "type": "string",
-            "format": "date",
-            "title": "Passportissuedate"
-          },
-          "birthDate": {
-            "type": "string",
-            "format": "date",
-            "title": "Birthdate"
-          },
-          "inn": {
-            "type": "string",
-            "title": "Inn"
           }
         },
         "type": "object",
@@ -30616,15 +30994,10 @@
           "fullNameRu",
           "fullNameLat",
           "phone",
-          "email",
-          "passportSerial",
-          "passportNumber",
-          "passportIssueDate",
-          "birthDate",
-          "inn"
+          "email"
         ],
         "title": "RecipientSnapshotSchema",
-        "description": "Customs PII frozen on the order at checkout.\n\nC5.1 — admin-only. Frontend admin masks ``passportSerial`` /\n``passportNumber`` / ``inn`` in the UI (last 2-4 digits). Never\nsurfaced via the customer order endpoint."
+        "description": "Shipping recipient frozen on the order at checkout.\n\nPost-ADR-011: customs PII moved to :class:`PassportSnapshotSchema`.\nAdmin-only — never surfaced via the customer order endpoint."
       },
       "RecomputeFanoutResponse": {
         "properties": {
@@ -35578,6 +35951,91 @@
         "type": "object",
         "title": "UpdateLanguageRequest"
       },
+      "UpdatePassportRequest": {
+        "properties": {
+          "fullNameRu": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Fullnameru"
+          },
+          "fullNameLat": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Fullnamelat"
+          },
+          "passportSerial": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Passportserial"
+          },
+          "passportNumber": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Passportnumber"
+          },
+          "passportIssueDate": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Passportissuedate"
+          },
+          "birthDate": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Birthdate"
+          },
+          "inn": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Inn"
+          }
+        },
+        "type": "object",
+        "title": "UpdatePassportRequest"
+      },
       "UpdateProfileRequest": {
         "properties": {
           "firstName": {
@@ -35743,63 +36201,6 @@
               }
             ],
             "title": "Email"
-          },
-          "passportSerial": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Passportserial"
-          },
-          "passportNumber": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Passportnumber"
-          },
-          "passportIssueDate": {
-            "anyOf": [
-              {
-                "type": "string",
-                "format": "date"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Passportissuedate"
-          },
-          "birthDate": {
-            "anyOf": [
-              {
-                "type": "string",
-                "format": "date"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Birthdate"
-          },
-          "inn": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Inn"
           }
         },
         "type": "object",

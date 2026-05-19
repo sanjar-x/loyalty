@@ -236,6 +236,35 @@ Now-order от cart-flow-order в analytics без heuristics поверх
 что cart-flow и Buy Now ведут себя одинаково в edge-cases
 (expired quote, wrong customer, currency mismatch).
 
+### I5 — Cross-border требует explicit `passport_id` (ADR-011, Sprint 1.5 Part 2)
+
+`Order.create` отвергает заказ с
+``PassportRequiredForCrossBorderError`` (HTTP 422 / error_code
+``PASSPORT_REQUIRED_FOR_CROSS_BORDER``), если среди items есть хотя
+бы один с ``supplier_type=CROSS_BORDER`` и ``passport_snapshot is
+None``. Local-only заказы от инварианта освобождены — passport
+остаётся опциональным.
+
+Расширения для Buy Now конкретно:
+
+- `BuyNowOrderRequest.passport_id` (camelCase ``passportId``) —
+  опциональное поле, frontend обязан заполнить его для cross-border
+  SKU. Backend не пытается «найти подходящий passport» сам —
+  customer явно выбирает (recipient_id, passport_id?) на checkout.
+- Handler через `IPassportLookup` подтягивает Passport, проверяет
+  ownership (passport.identity_id == auth.identity_id) и архивный
+  статус. Несоответствие → 422 с
+  ``ORDER_PASSPORT_OWNERSHIP_MISMATCH`` / ``ORDER_PASSPORT_INVALID``.
+- DB-уровень: `orders.passport_id` (FK ON DELETE SET NULL) +
+  `orders.passport_snapshot` (JSONB). Пара
+  ``passport_id ⇔ passport_snapshot`` enforced через CHECK
+  constraint `ck_orders_passport_pair_consistent` (оба NULL или оба
+  set) — defence-in-depth поверх domain invariant в
+  `Order.__attrs_post_init__`.
+
+См. ADR-011 «Passport as independent bounded context» для общего
+обоснования разделения Recipient / Passport.
+
 ## Related decisions
 
 - **Cart `/trash` partial checkout** — отдельный сценарий
