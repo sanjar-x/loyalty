@@ -22,6 +22,7 @@ MODULES = [
     "favorites",
     "image",
     "order",
+    "passport",
     "payment",
     "recipient",
     "referral",
@@ -301,6 +302,15 @@ ALLOWED_CROSS_MODULE = {
     ("cart", "recipient"): {
         "src.modules.cart.infrastructure.adapters.recipient_lookup",
     },
+    # Sprint 1.5 Part 2 / ADR-011 — Order ↔ Passport: order reads
+    # the Passport aggregate via a single ACL adapter (cross-border
+    # invariant + walk-in handler attach). Passport never imports
+    # order (independent bounded contexts, M:N through Order).
+    ("order", "passport"): {
+        "src.modules.order.infrastructure.adapters.passport_lookup",
+    },
+    # Passport routers use identity's Auth dep.
+    ("passport", "identity"): {"src.modules.passport.presentation.*"},
 }
 
 

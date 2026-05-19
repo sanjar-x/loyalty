@@ -122,6 +122,7 @@ _ALLOWED_PREFIX_ROOTS = (
     "/cart",
     "/favorites",
     "/orders",
+    "/passports",
     "/payments",
     "/recipients",
     "/geo",
