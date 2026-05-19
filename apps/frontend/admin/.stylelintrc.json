@@ -1,0 +1,41 @@
+{
+  "$schema": "https://json.schemastore.org/stylelintrc",
+  "extends": [
+    "stylelint-config-standard",
+    "stylelint-config-css-modules",
+    "stylelint-config-tailwindcss"
+  ],
+  "ignoreFiles": [
+    "node_modules/**",
+    ".next/**",
+    "coverage/**",
+    "build/**",
+    "dist/**",
+    "public/**"
+  ],
+  "rules": {
+    "selector-class-pattern": null,
+    "no-descending-specificity": null,
+    "at-rule-no-unknown": [
+      true,
+      {
+        "ignoreAtRules": [
+          "tailwind",
+          "apply",
+          "variants",
+          "responsive",
+          "screen",
+          "layer",
+          "config",
+          "theme",
+          "source",
+          "utility",
+          "custom-variant",
+          "reference"
+        ]
+      }
+    ],
+    "import-notation": "string",
+    "value-keyword-case": ["lower", { "ignoreProperties": ["composes"] }]
+  }
+}

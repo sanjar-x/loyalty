@@ -1,0 +1,132 @@
+/* ===== Page root ==================================================== */
+.page {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+
+/* ===== Tabs (segmented control) ===================================== */
+.tabs {
+  display: inline-flex;
+  align-self: flex-start;
+  gap: 4px;
+  padding: 4px;
+  background: var(--app-card);
+  border-radius: 14px;
+}
+
+.tab {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  height: 36px;
+  padding: 0 18px;
+  border: 0;
+  border-radius: 10px;
+  background: transparent;
+  color: var(--app-muted-soft);
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 20px;
+  cursor: pointer;
+  transition:
+    color 120ms ease,
+    background 120ms ease,
+    box-shadow 120ms ease;
+}
+
+.tab:hover:not(.tabActive) {
+  color: var(--app-text);
+}
+
+.tabActive {
+  background: var(--app-panel);
+  color: var(--app-text-strong);
+  box-shadow:
+    0 1px 2px rgba(18, 28, 45, 0.08),
+    0 0 0 1px rgba(18, 28, 45, 0.04);
+}
+
+.tab:focus-visible {
+  outline: 2px solid var(--app-focus-ring);
+  outline-offset: 2px;
+}
+
+.tabCount {
+  margin-left: 4px;
+  padding: 1px 8px;
+  border-radius: 999px;
+  background: var(--app-card-hover);
+  color: var(--app-muted-soft);
+  font-size: 11px;
+  font-weight: 700;
+  line-height: 16px;
+}
+
+.tabActive .tabCount {
+  background: var(--app-text);
+  color: var(--app-panel);
+}
+
+/* ===== Toolbar (summary + primary action) =========================== */
+.toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+.toolbarFilters {
+  display: inline-flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.toolbarTotal {
+  color: var(--app-text);
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 20px;
+}
+
+.primaryButton {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  height: 38px;
+  padding: 0 18px;
+  border-radius: 12px;
+  border: 0;
+  background: var(--app-text);
+  color: var(--app-panel);
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 20px;
+  cursor: pointer;
+  white-space: nowrap;
+  transition:
+    background 120ms ease,
+    transform 60ms ease;
+}
+
+.primaryButton:hover {
+  background: var(--app-text-strong);
+}
+
+.primaryButton:active {
+  transform: translateY(1px);
+}
+
+.primaryButton:focus-visible {
+  outline: 2px solid var(--app-focus-ring);
+  outline-offset: 2px;
+}
+
+/* ===== Pagination footer ============================================ */
+.pagination {
+  display: flex;
+  justify-content: center;
+  padding: 16px 0 4px;
+}

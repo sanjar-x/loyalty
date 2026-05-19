@@ -1,0 +1,1082 @@
+/* ============================================================
+ * Staff page — list rows, filters row, modal sections.
+ * ============================================================ */
+
+/* ---------- Filters row ---------- */
+.filters {
+  margin: 4px 0 4px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.searchInput {
+  flex: 1 1 280px;
+  height: 44px;
+  padding: 0 16px;
+  border-radius: 999px;
+  border: 0;
+  background: var(--app-card);
+  color: var(--app-text);
+  font-size: 15px;
+  font-weight: 500;
+  line-height: 22px;
+  outline: none;
+}
+
+.searchInput::placeholder {
+  color: var(--app-text-secondary);
+}
+
+.filterSelect {
+  height: 44px;
+  padding: 0 36px 0 16px;
+  border: 0;
+  border-radius: 999px;
+  background: var(--app-card);
+  color: var(--app-text);
+  font-size: 14px;
+  font-weight: 500;
+  line-height: 20px;
+  cursor: pointer;
+  appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg width='10' height='6' viewBox='0 0 10 6' fill='none' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M1 1L5 5L9 1' stroke='%2322252b' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 14px center;
+}
+
+.sortWrap {
+  position: relative;
+}
+
+.sortButton {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  height: 44px;
+  padding: 0 18px;
+  border: 0;
+  border-radius: 999px;
+  background: var(--app-card);
+  color: var(--app-text);
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+}
+
+.sortMenu {
+  position: absolute;
+  top: calc(100% + 6px);
+  left: 0;
+  z-index: 30;
+  margin: 0;
+  padding: 6px;
+  list-style: none;
+  min-width: 200px;
+  background: var(--app-panel);
+  border-radius: 14px;
+  box-shadow: 0 12px 32px rgba(18, 28, 45, 0.12);
+  border: 1px solid var(--app-status-revoked-bg);
+}
+
+.sortMenuItem {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  border: 0;
+  background: transparent;
+  padding: 10px 12px;
+  border-radius: 10px;
+  color: var(--app-text);
+  font-size: 14px;
+  font-weight: 500;
+  line-height: 20px;
+  cursor: pointer;
+  text-align: left;
+}
+
+.sortMenuItem:hover {
+  background: var(--app-card);
+}
+
+.sortMenuItemActive {
+  background: var(--app-card);
+}
+
+.resetButton {
+  height: 36px;
+  padding: 0 16px;
+  border: 0;
+  border-radius: 999px;
+  background: var(--app-card);
+  color: var(--app-muted-soft);
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition:
+    background 120ms ease,
+    color 120ms ease;
+}
+
+.resetButton:hover {
+  background: var(--app-card-hover);
+  color: var(--app-text);
+}
+
+.resetButton:focus-visible {
+  outline: 2px solid var(--app-focus-ring);
+  outline-offset: 2px;
+}
+
+/* ---------- List header (column titles) ---------- */
+.listHeader {
+  display: grid;
+  grid-template-columns:
+    minmax(220px, 2fr) minmax(180px, 1.5fr) minmax(180px, 1.5fr)
+    minmax(120px, 0.9fr) minmax(140px, 0.9fr);
+  align-items: center;
+  gap: 16px;
+  padding: 10px 16px;
+  background: var(--app-card-soft);
+  color: var(--app-text-secondary);
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  border-radius: 12px 12px 0 0;
+  border: 1px solid var(--app-card-hover);
+  border-bottom: 0;
+}
+
+/* ---------- List rows ---------- */
+.list {
+  display: flex;
+  flex-direction: column;
+  border: 1px solid var(--app-card-hover);
+  border-radius: 0 0 12px 12px;
+  overflow: hidden;
+  background: var(--app-panel);
+}
+
+.list .row:last-child,
+.list .invitationRow:last-child {
+  border-bottom: 0;
+}
+
+.row,
+.invitationRow {
+  display: grid;
+  align-items: center;
+  gap: 16px;
+  padding: 14px 16px;
+  background: var(--app-panel);
+  border-bottom: 1px solid var(--app-card-hover);
+  text-align: left;
+  border-left: 0;
+  border-right: 0;
+  border-top: 0;
+  width: 100%;
+  cursor: pointer;
+  transition: background 120ms ease;
+}
+
+.row {
+  grid-template-columns:
+    minmax(220px, 2fr) minmax(180px, 1.5fr) minmax(180px, 1.5fr)
+    minmax(120px, 0.9fr) minmax(140px, 0.9fr);
+}
+
+.invitationRow {
+  grid-template-columns:
+    minmax(220px, 2fr) minmax(160px, 1.3fr) minmax(110px, 0.7fr)
+    minmax(220px, 1.3fr) minmax(120px, 0.7fr);
+  cursor: default;
+}
+
+.row:hover {
+  background: var(--app-row-hover);
+}
+
+.row:focus-visible {
+  outline: 2px solid var(--app-focus-ring);
+  outline-offset: -2px;
+}
+
+/* ---------- Avatar (initials) ---------- */
+.personCell {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
+}
+
+.personInfo {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.avatar {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 38px;
+  height: 38px;
+  border-radius: 999px;
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  user-select: none;
+}
+
+.cell {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.primary {
+  color: var(--app-text);
+  font-size: 14px;
+  font-weight: 500;
+  line-height: 20px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.secondary {
+  color: var(--app-text-secondary);
+  font-size: 12px;
+  font-weight: 500;
+  line-height: 16px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.rolesCell {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  align-items: center;
+}
+
+.statusCell {
+  display: inline-flex;
+  align-items: center;
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--app-text);
+}
+
+.statusDot {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  margin-right: 6px;
+}
+
+.statusActive {
+  background-color: var(--app-success-soft);
+}
+
+.statusInactive {
+  background-color: var(--app-danger-strong);
+}
+
+.dateCell {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  color: var(--app-text);
+  font-size: 14px;
+  font-weight: 500;
+  font-variant-numeric: tabular-nums;
+}
+
+.actionsCell {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+/* ---------- Status pills (invitation statuses) ---------- */
+.statusPill {
+  display: inline-flex;
+  align-items: center;
+  padding: 4px 10px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 16px;
+}
+
+.statusPillPending {
+  background: var(--app-status-pending-bg);
+  color: var(--app-status-pending-fg);
+}
+
+.statusPillAccepted {
+  background: var(--app-status-accepted-bg);
+  color: var(--app-status-accepted-fg);
+}
+
+.statusPillRevoked {
+  background: var(--app-status-revoked-bg);
+  color: var(--app-text-secondary);
+}
+
+/* EXPIRED is "attention, recoverable" — not an error. Amber separates it
+ * visually from REVOKED (grey, terminal) and from the destructive revoke
+ * button (red). */
+.statusPillExpired {
+  background: var(--app-warning-soft);
+  color: var(--app-warning-text-strong);
+}
+
+.revokeButton {
+  height: 32px;
+  padding: 0 12px;
+  border: 0;
+  border-radius: 10px;
+  background: var(--app-danger-soft);
+  color: var(--app-danger-strong);
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.revokeButton:hover {
+  background: color-mix(
+    in srgb,
+    var(--app-danger-soft) 70%,
+    var(--app-danger-strong)
+  );
+}
+
+.revokeButton:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.resendButton,
+.openProfileButton {
+  height: 32px;
+  padding: 0 12px;
+  border: 0;
+  border-radius: 10px;
+  background: var(--app-card);
+  color: var(--app-text);
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.resendButton:hover,
+.openProfileButton:hover {
+  background: var(--app-card-hover);
+}
+
+.resendButton:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* Expiry chips — surfaced below the "Истекает" date when the row is
+ * PENDING and the deadline is either approaching (<24h) or already
+ * passed (backend doesn't auto-flip PENDING → EXPIRED until cron runs,
+ * so we display the truth based on the wall clock). */
+.expiryChip {
+  display: inline-flex;
+  align-items: center;
+  margin-top: 2px;
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.expiryChipSoon {
+  background: var(--app-danger-soft);
+  color: var(--app-danger-strong);
+}
+
+.expiryChipPast {
+  background: var(--app-status-revoked-bg);
+  color: var(--app-text-secondary);
+}
+
+/* Status filter tabs — replaces the original <select> for the
+ * invitations list. Visually distinct from the page-level tab bar
+ * (smaller, no aria-tablist semantics since these are just filter
+ * shortcuts, not panels). */
+.statusFilterTabs {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  padding: 4px;
+  background: var(--app-card);
+  border-radius: 999px;
+}
+
+.statusFilterTab {
+  height: 32px;
+  padding: 0 14px;
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
+  color: var(--app-text-secondary);
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.statusFilterTab:hover {
+  color: var(--app-text);
+}
+
+.statusFilterTabActive {
+  background: var(--app-panel);
+  color: var(--app-text);
+  box-shadow: 0 1px 3px rgba(18, 28, 45, 0.08);
+}
+
+.statusFilterTab:focus-visible {
+  outline: 2px solid var(--app-focus-ring);
+  outline-offset: 2px;
+}
+
+/* ---------- Skeleton + empty ---------- */
+.skeleton {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 4px 0;
+}
+
+.skeletonRow {
+  height: 62px;
+  border-radius: 12px;
+  background: var(--app-card);
+  animation: pulse 1.5s ease-in-out infinite;
+}
+
+.emptyState {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  padding: 64px 16px;
+  text-align: center;
+  background: var(--app-panel);
+  border: 1px dashed var(--app-border);
+  border-radius: 14px;
+}
+
+.emptyTitle {
+  color: var(--app-text);
+  font-size: 16px;
+  font-weight: 600;
+  margin: 0;
+}
+
+.emptyDescription {
+  color: var(--app-text-secondary);
+  font-size: 14px;
+  margin: 0;
+}
+
+.emptyCta {
+  margin-top: 12px;
+  height: 38px;
+  padding: 0 18px;
+  border: 0;
+  border-radius: 12px;
+  background: var(--app-text);
+  color: var(--app-panel);
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 120ms ease;
+}
+
+.emptyCta:hover {
+  background: var(--app-text-strong);
+}
+
+.emptyCta:focus-visible {
+  outline: 2px solid var(--app-focus-ring);
+  outline-offset: 2px;
+}
+
+/* ---------- Modal sections ---------- */
+.detailSection {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-top: 12px;
+}
+
+.detailRow {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+}
+
+.detailRow + .detailRow {
+  padding-top: 8px;
+  border-top: 1px solid var(--app-status-revoked-bg);
+}
+
+.detailLabel {
+  color: var(--app-text-secondary);
+  font-size: 13px;
+  font-weight: 500;
+}
+
+.detailValue {
+  color: var(--app-text);
+  font-size: 14px;
+  font-weight: 500;
+  text-align: right;
+  display: inline-flex;
+  align-items: center;
+}
+
+.rolesSection {
+  margin-top: 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.rolesTitle {
+  color: var(--app-text);
+  font-size: 15px;
+  font-weight: 600;
+  margin: 0;
+}
+
+.rolesList {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.roleBadge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 10px;
+  border-radius: 999px;
+  background: var(--app-card);
+  color: var(--app-text);
+  font-size: 13px;
+  font-weight: 500;
+}
+
+.roleRemoveButton {
+  border: 0;
+  background: transparent;
+  color: var(--app-text-secondary);
+  font-size: 13px;
+  line-height: 1;
+  padding: 2px;
+  cursor: pointer;
+  border-radius: 50%;
+}
+
+.roleRemoveButton:hover {
+  color: var(--app-danger-strong);
+  background: rgb(201 76 76 / 10%);
+}
+
+.roleRemoveButton:focus-visible {
+  outline: 2px solid var(--app-focus-ring);
+  outline-offset: 2px;
+}
+
+.addRoleRow {
+  display: flex;
+  gap: 8px;
+}
+
+.addRoleSelect {
+  flex: 1;
+  height: 38px;
+  padding: 0 12px;
+  border-radius: 12px;
+  border: 1px solid var(--app-border);
+  background: var(--app-panel);
+  color: var(--app-text);
+  font-size: 14px;
+  cursor: pointer;
+}
+
+.addRoleButton {
+  height: 38px;
+  padding: 0 14px;
+  border: 0;
+  border-radius: 12px;
+  background: var(--app-text);
+  color: var(--app-panel);
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.addRoleButton:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.reasonSection {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-top: 14px;
+}
+
+.reasonLabel {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+  color: var(--app-text);
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.reasonCounter {
+  color: var(--app-text-secondary);
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+}
+
+.reasonInput {
+  width: 100%;
+  min-height: 72px;
+  padding: 10px 12px;
+  border-radius: 12px;
+  border: 1px solid var(--app-border);
+  background: var(--app-panel);
+  color: var(--app-text);
+  font-family: inherit;
+  font-size: 14px;
+  resize: vertical;
+}
+
+.reasonInput:focus {
+  outline: 2px solid var(--app-focus-ring);
+  outline-offset: -1px;
+  border-color: var(--app-focus-ring);
+}
+
+.reasonInput:disabled {
+  opacity: 0.6;
+}
+
+/* ---------- Invite modal fields ---------- */
+.fieldLabel {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  color: var(--app-text);
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.fieldInput {
+  height: 42px;
+  padding: 0 14px;
+  border-radius: 12px;
+  border: 1px solid var(--app-border);
+  background: var(--app-panel);
+  color: var(--app-text);
+  font-size: 14px;
+  font-weight: 500;
+  outline: none;
+}
+
+.fieldInput:focus {
+  border-color: var(--app-focus-ring);
+  box-shadow: 0 0 0 2px rgb(74 144 217 / 20%);
+}
+
+.rolesPickerList {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  max-height: 240px;
+  overflow-y: auto;
+  padding: 8px;
+  border: 1px solid var(--app-card-hover);
+  border-radius: 12px;
+  background: var(--app-row-hover);
+}
+
+.rolesPickerItem {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 8px;
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--app-text);
+}
+
+.rolesPickerItem:hover {
+  background: var(--app-status-revoked-bg);
+}
+
+.successText {
+  color: var(--app-text);
+  font-size: 14px;
+  line-height: 20px;
+  margin: 0;
+}
+
+.inviteLinkRow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.inviteLink {
+  flex: 1;
+  display: block;
+  padding: 10px 12px;
+  border-radius: 10px;
+  background: var(--app-card);
+  color: var(--app-text);
+  font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', monospace;
+  font-size: 12px;
+  font-weight: 500;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.copyButton {
+  height: 38px;
+  padding: 0 14px;
+  border: 0;
+  border-radius: 10px;
+  background: var(--app-card);
+  color: var(--app-text);
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+}
+
+.copyButton:hover {
+  background: var(--app-card-hover);
+}
+
+/* ---------- Modal actions ---------- */
+.modalActions {
+  margin-top: 18px;
+  display: flex;
+  gap: 8px;
+  justify-content: flex-end;
+}
+
+.primaryButton {
+  height: 42px;
+  padding: 0 22px;
+  border: 0;
+  border-radius: 12px;
+  background: var(--app-text);
+  color: var(--app-panel);
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.primaryButton:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.secondaryButton {
+  height: 42px;
+  padding: 0 22px;
+  border: 1px solid var(--app-border);
+  border-radius: 12px;
+  background: var(--app-panel);
+  color: var(--app-text);
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.deactivateButton {
+  height: 42px;
+  padding: 0 20px;
+  border: 0;
+  border-radius: 12px;
+  background: var(--app-danger-strong);
+  color: var(--app-panel);
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  width: 100%;
+}
+
+.reactivateButton {
+  height: 42px;
+  padding: 0 20px;
+  border: 0;
+  border-radius: 12px;
+  background: var(--app-success-soft);
+  color: var(--app-panel);
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  width: 100%;
+}
+
+.deactivateButton:disabled,
+.reactivateButton:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.modalError {
+  margin-top: 10px;
+  padding: 10px 12px;
+  border-radius: 10px;
+  background: var(--app-danger-soft);
+  color: var(--app-danger-strong);
+  font-size: 13px;
+  font-weight: 500;
+}
+
+@keyframes pulse {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.5;
+  }
+}
+
+/* ---------- Anomaly badges (row) ---------- */
+
+/* Name cell needs to hold the primary label plus a stack of chips on the
+ * same line; the row template column already truncates long emails, but
+ * the chips themselves must stay readable, so we let them flow on a new
+ * row when there's no horizontal space. */
+.nameLine {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  min-width: 0;
+}
+
+.primaryPlaceholder {
+  color: var(--app-text-secondary);
+  font-style: italic;
+}
+
+.anomalyBadgeStack {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.anomalyBadge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 600;
+  line-height: 16px;
+  white-space: nowrap;
+  cursor: help;
+}
+
+.anomalyBadgeIcon {
+  width: 12px;
+  height: 12px;
+}
+
+/* Warning — actionable data anomaly (CUSTOMER + admin role).
+ * Amber, not red — operator should notice but the page itself works. */
+.anomalyBadgeWarning {
+  background: var(--app-warning-soft);
+  color: var(--app-warning-text);
+}
+
+/* Neutral — incomplete state (missing staff_members row). Not a deviation,
+ * just unfinished provisioning. Plain grey to read as informational. */
+.anomalyBadgeNeutral {
+  background: var(--app-neutral-soft);
+  color: var(--app-muted-soft);
+}
+
+/* ---------- Anomaly banner (detail modal) ---------- */
+.anomalyBanner {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 12px 14px;
+  border-radius: 12px;
+  margin-bottom: 12px;
+  font-size: 13px;
+  line-height: 18px;
+}
+
+.anomalyBannerWarning {
+  background: var(--app-warning-soft);
+  color: var(--app-warning-text-dark);
+  border: 1px solid var(--app-warning-border);
+}
+
+.anomalyBannerNeutral {
+  background: var(--app-neutral-soft);
+  color: var(--app-neutral-text-dark);
+  border: 1px solid var(--app-neutral-border);
+}
+
+.anomalyBannerIcon {
+  width: 18px;
+  height: 18px;
+  flex-shrink: 0;
+  margin-top: 1px;
+}
+
+.anomalyBannerBody {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+
+.anomalyBannerTitle {
+  font-size: 13px;
+  font-weight: 700;
+  margin: 0;
+}
+
+.anomalyBannerText {
+  font-size: 13px;
+  margin: 0;
+}
+
+.anomalyBannerText code {
+  background: rgb(0 0 0 / 6%);
+  padding: 0 4px;
+  border-radius: 4px;
+  font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', monospace;
+  font-size: 12px;
+}
+
+.detailValueMuted {
+  color: var(--app-text-secondary);
+  font-style: italic;
+}
+
+/* ---------- Page-level summary + anomaly toggle ---------- */
+.summaryAnomalies {
+  color: var(--app-warning-text);
+  font-weight: 600;
+}
+
+.summaryAnomaliesHint {
+  color: var(--app-text-secondary);
+  font-weight: 500;
+}
+
+/* Filter row + anomaly toggle live together so the toggle slots in next to
+ * the existing pill-controls instead of breaking the visual rhythm with a
+ * dedicated band. */
+.filtersRow {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin: 4px 0 8px;
+}
+
+.filtersRow .filters {
+  flex: 1 1 320px;
+  margin: 0;
+}
+
+.anomalyToggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 0 14px;
+  height: 44px;
+  border-radius: 999px;
+  background: var(--app-card);
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--app-text);
+  cursor: pointer;
+  user-select: none;
+  white-space: nowrap;
+  transition:
+    background 120ms ease,
+    color 120ms ease;
+}
+
+.anomalyToggle:hover {
+  background: var(--app-card-hover);
+}
+
+.anomalyToggle:focus-within {
+  outline: 2px solid var(--app-focus-ring);
+  outline-offset: 2px;
+}
+
+.anomalyToggleHint {
+  color: var(--app-muted-soft);
+  font-weight: 500;
+}
+
+.anomalyToggleActive {
+  background: var(--app-warning-soft);
+  color: var(--app-warning-text);
+}
+
+.anomalyToggleActive:hover {
+  background: var(--app-warning-soft-strong);
+}
+
+.anomalyToggle input {
+  accent-color: var(--app-text);
+  cursor: pointer;
+}
+
+.anomalyToggleCount {
+  margin-left: 2px;
+  padding: 1px 8px;
+  border-radius: 999px;
+  background: var(--app-warning-soft);
+  color: var(--app-warning-text);
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.anomalyToggleActive .anomalyToggleCount {
+  background: rgba(133, 100, 4, 0.16);
+}

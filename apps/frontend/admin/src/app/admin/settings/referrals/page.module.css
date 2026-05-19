@@ -1,0 +1,274 @@
+.header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 2px 0 14px;
+  border-bottom: 1px solid #ededed;
+}
+
+.headerTitle {
+  margin: 0;
+  color: #111111;
+  font-size: 20px;
+  font-weight: 600;
+  line-height: 24px;
+}
+
+.primaryButton {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  height: 34px;
+  padding: 0 14px;
+  border-radius: 12px;
+  border: 0;
+  background: #2d2d2d;
+  color: #ffffff;
+  font-size: 14px;
+  font-weight: 500;
+  line-height: 20px;
+  cursor: pointer;
+}
+
+.primaryButton:hover {
+  background: #1f1f1f;
+}
+
+.table {
+  margin-top: 8px;
+}
+
+.row {
+  display: grid;
+  grid-template-columns:
+    minmax(110px, 0.9fr)
+    minmax(150px, 1fr)
+    minmax(320px, 2.2fr)
+    minmax(160px, 1.1fr)
+    minmax(130px, 0.9fr)
+    44px;
+  align-items: center;
+  gap: 12px;
+  padding: 14px 6px;
+}
+
+.row + .row {
+  border-top: 1px solid #f0f0f0;
+}
+
+.cellName {
+  color: #111111;
+  font-size: 14px;
+  font-weight: 500;
+  line-height: 20px;
+}
+
+.cellDate {
+  color: #111111;
+  font-size: 14px;
+  font-weight: 500;
+  line-height: 20px;
+  white-space: nowrap;
+}
+
+.cellLink {
+  color: #4a90d9;
+  font-size: 14px;
+  font-weight: 500;
+  line-height: 20px;
+  text-decoration: none;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.cellLink:hover {
+  text-decoration: underline;
+}
+
+.countCell {
+  display: inline-flex;
+  align-items: center;
+  gap: 15px;
+  min-width: 0;
+  overflow: visible;
+}
+
+.countIcon {
+  width: 18px;
+  height: 18px;
+  flex: 0 0 auto;
+  color: #111111;
+  overflow: visible;
+}
+
+.countValue {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 6px;
+  color: #111111;
+  font-size: 14px;
+  font-weight: 500;
+  line-height: 20px;
+  white-space: nowrap;
+}
+
+.delta {
+  color: #7e7e7e;
+}
+
+.iconButton {
+  width: 34px;
+  height: 34px;
+  border-radius: 12px;
+  border: 0;
+  background: #f4f3f1;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.iconButton:hover {
+  background: #ededed;
+}
+
+.actionIcon {
+  width: 18px;
+  height: 18px;
+  color: #111111;
+  overflow: visible;
+}
+
+.pagination {
+  margin-top: 20px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.pageButton {
+  width: 36px;
+  height: 36px;
+  border-radius: 12px;
+  border: 0;
+  background: #f4f3f1;
+  color: #2d2d2d;
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 500;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.pageButton:hover {
+  background: #ededed;
+}
+
+.pageButtonActive {
+  background: #2d2d2d;
+  color: #ffffff;
+}
+
+.modalOverlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.45);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  z-index: 50;
+}
+
+.modalCard {
+  width: min(760px, 100%);
+  background: #ffffff;
+  border-radius: 18px;
+  padding: 22px 22px 18px;
+}
+
+.modalHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.modalTitle {
+  margin: 0;
+  color: #111111;
+  font-size: 18px;
+  font-weight: 600;
+  line-height: 22px;
+}
+
+.modalClose {
+  width: 34px;
+  height: 34px;
+  border-radius: 12px;
+  border: 0;
+  background: transparent;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.modalClose:hover {
+  background: #f4f3f1;
+}
+
+.modalBody {
+  margin-top: 14px;
+}
+
+.modalInput {
+  width: 100%;
+  height: 46px;
+  border-radius: 14px;
+  border: 0;
+  background: #f4f3f1;
+  padding: 0 16px;
+  color: #111111;
+  font-size: 14px;
+  font-weight: 500;
+  line-height: 20px;
+  outline: none;
+}
+
+.modalInput::placeholder {
+  color: #7e7e7e;
+  font-weight: 500;
+}
+
+.modalFooter {
+  margin-top: 16px;
+  display: flex;
+  justify-content: flex-end;
+}
+
+.modalSubmit {
+  height: 34px;
+  padding: 0 14px;
+  border-radius: 12px;
+  border: 0;
+  background: #2d2d2d;
+  color: #ffffff;
+  font-size: 13px;
+  font-weight: 500;
+  line-height: 20px;
+  cursor: pointer;
+}
+
+.modalSubmit:hover {
+  background: #1f1f1f;
+}
+
+.modalSubmit:disabled {
+  background: #ededed;
+  color: #7e7e7e;
+  cursor: not-allowed;
+}

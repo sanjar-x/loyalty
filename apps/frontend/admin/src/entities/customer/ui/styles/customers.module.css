@@ -1,0 +1,657 @@
+/* ============================================================
+ * Users page — layout matches the Figma «Пользователи» mock.
+ * Sections: page > metrics card > filters row > flat list > pagination.
+ * ============================================================ */
+
+/* ---------- Filters row ---------- */
+.filters {
+  margin: 18px 0 10px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.search {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  height: 46px;
+  padding: 0 18px;
+  border-radius: 999px;
+  background: #f4f3f1;
+  min-width: 320px;
+}
+
+.searchIcon {
+  width: 20px;
+  height: 20px;
+  flex: 0 0 auto;
+}
+
+.searchInput {
+  border: 0;
+  outline: none;
+  background: transparent;
+  width: 100%;
+  color: #22252b;
+  font-size: 16px;
+  font-weight: 500;
+  line-height: 22px;
+}
+
+.searchInput::placeholder {
+  color: #7e7e7e;
+}
+
+.sortWrap {
+  position: relative;
+}
+
+.sortButton {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  height: 46px;
+  padding: 0 18px;
+  border: 0;
+  border-radius: 999px;
+  background: #f4f3f1;
+  color: #22252b;
+  font-size: 14px;
+  font-weight: 500;
+  line-height: 20px;
+  cursor: pointer;
+  transition: background-color 150ms;
+}
+
+.sortButton:hover {
+  background: #ededeb;
+}
+
+.sortIcon {
+  color: #22252b;
+}
+
+.sortMenu {
+  position: absolute;
+  top: calc(100% + 6px);
+  left: 0;
+  z-index: 30;
+  margin: 0;
+  padding: 6px;
+  list-style: none;
+  min-width: 200px;
+  background: #fff;
+  border-radius: 14px;
+  box-shadow: 0 12px 32px rgba(18, 28, 45, 0.12);
+  border: 1px solid #f0f0f0;
+}
+
+.sortMenuItem {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  border: 0;
+  background: transparent;
+  padding: 10px 12px;
+  border-radius: 10px;
+  color: #22252b;
+  font-size: 14px;
+  font-weight: 500;
+  line-height: 20px;
+  cursor: pointer;
+  text-align: left;
+}
+
+.sortMenuItem:hover {
+  background: #f4f3f1;
+}
+
+.sortMenuItemActive {
+  background: #f4f3f1;
+}
+
+.resetButton {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 46px;
+  border: 0;
+  background: transparent;
+  cursor: pointer;
+  color: #7e7e7e;
+}
+
+.resetButton:hover {
+  color: #22252b;
+}
+
+/* ---------- Metrics card (top horizontal strip) ---------- */
+.metricsCard {
+  margin-top: 14px;
+  background: #f4f3f1;
+  border-radius: 18px;
+  padding: 22px 28px 18px;
+}
+
+.cardLabel {
+  margin: 0 0 14px;
+  color: #7e7e7e;
+  font-size: 14px;
+  font-weight: 500;
+  line-height: 20px;
+}
+
+.metricsGrid {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  align-items: end;
+  column-gap: 24px;
+  row-gap: 12px;
+}
+
+.metric {
+  min-width: 0;
+}
+
+.metricValueRow {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+}
+
+.metricValue {
+  margin: 0;
+  color: #22252b;
+  font-size: 28px;
+  font-weight: 700;
+  line-height: 32px;
+  letter-spacing: -0.5px;
+  font-variant-numeric: tabular-nums;
+}
+
+.metricChange {
+  font-size: 13px;
+  font-weight: 600;
+  line-height: 18px;
+  font-variant-numeric: tabular-nums;
+}
+
+.metricChangePositive {
+  color: #429700;
+}
+
+.metricChangeNegative {
+  color: #c94c4c;
+}
+
+.metricChangeNeutral {
+  color: #7e7e7e;
+}
+
+.metricTitle {
+  margin: 6px 0 0;
+  color: #7e7e7e;
+  font-size: 14px;
+  font-weight: 500;
+  line-height: 20px;
+}
+
+.rangeRow {
+  margin-top: 6px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.rangeClear {
+  border: 0;
+  background: transparent;
+  color: #7e7e7e;
+  font-size: 18px;
+  line-height: 1;
+  cursor: pointer;
+  padding: 2px 6px;
+  border-radius: 6px;
+}
+
+.rangeClear:hover {
+  color: #22252b;
+  background: rgba(0, 0, 0, 0.04);
+}
+
+/* ---------- Flat list ---------- */
+.row {
+  display: grid;
+  grid-template-columns:
+    minmax(180px, 1.4fr)
+    minmax(120px, 0.9fr)
+    minmax(140px, 1fr)
+    minmax(110px, 0.9fr)
+    minmax(72px, 0.6fr)
+    minmax(72px, 0.6fr)
+    minmax(180px, 0.9fr);
+  align-items: center;
+  gap: 18px;
+  padding: 16px 0;
+  border-top: 1px solid #ededeb;
+  position: relative;
+}
+
+.userCell {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
+}
+
+.avatar {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  flex: 0 0 40px;
+  border-radius: 50%;
+  border: 0;
+  cursor: pointer;
+  color: #fff;
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 1;
+  letter-spacing: 0.4px;
+  text-shadow: 0 1px 1px rgba(0, 0, 0, 0.18);
+}
+
+.usernameButton {
+  border: 0;
+  background: transparent;
+  padding: 0;
+  cursor: pointer;
+  color: #4a90d9;
+  font-size: 16px;
+  font-weight: 500;
+  line-height: 22px;
+  text-align: left;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.usernameButton:hover {
+  text-decoration: underline;
+}
+
+.idCell {
+  color: #22252b;
+  font-size: 14px;
+  font-weight: 500;
+  line-height: 20px;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.dateCell {
+  color: #22252b;
+  font-size: 14px;
+  font-weight: 500;
+  line-height: 20px;
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+
+.sourceCell {
+  display: inline-flex;
+  align-items: center;
+  min-width: 0;
+}
+
+.sourceLink {
+  color: #4a90d9;
+  font-size: 14px;
+  font-weight: 500;
+  line-height: 20px;
+}
+
+.sourceMuted {
+  color: #c4c4c4;
+  font-size: 14px;
+  font-weight: 500;
+  line-height: 20px;
+}
+
+.statCell {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: #22252b;
+  font-size: 14px;
+  font-weight: 500;
+  line-height: 20px;
+  font-variant-numeric: tabular-nums;
+}
+
+.statIcon {
+  color: #22252b;
+  flex: 0 0 auto;
+}
+
+.statValue {
+  min-width: 1ch;
+}
+
+.statDelta {
+  color: #7e7e7e;
+  font-size: 13px;
+}
+
+.actionsCell {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  justify-content: flex-end;
+}
+
+.actionIconButton {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  border: 0;
+  border-radius: 12px;
+  background: #f4f3f1;
+  color: #22252b;
+  cursor: pointer;
+  transition: background-color 150ms;
+}
+
+.actionIconButton:hover {
+  background: #ededeb;
+}
+
+.actionIcon {
+  color: #22252b;
+}
+
+.actionChatButton {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  height: 36px;
+  padding: 0 18px;
+  border: 0;
+  border-radius: 999px;
+  background: #f4f3f1;
+  color: #22252b;
+  font-size: 14px;
+  font-weight: 500;
+  line-height: 20px;
+  cursor: pointer;
+  transition: background-color 150ms;
+}
+
+.actionChatButton:hover {
+  background: #ededeb;
+}
+
+.inactiveBadge {
+  position: absolute;
+  right: 0;
+  top: 4px;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: #fef2f2;
+  color: #c94c4c;
+  font-size: 11px;
+  font-weight: 600;
+  line-height: 14px;
+}
+
+/* ---------- Skeleton + empty ---------- */
+.skeleton {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 16px 0;
+}
+
+.skeletonRow {
+  height: 56px;
+  border-radius: 12px;
+  background: #f4f3f1;
+  animation: pulse 1.5s ease-in-out infinite;
+}
+
+.emptyState {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  padding: 64px 16px;
+  text-align: center;
+}
+
+.emptyTitle {
+  color: #22252b;
+  font-size: 16px;
+  font-weight: 600;
+  line-height: 22px;
+  margin: 0;
+}
+
+.emptyDescription {
+  color: #7e7e7e;
+  font-size: 14px;
+  font-weight: 400;
+  line-height: 20px;
+  margin: 0;
+}
+
+/* ---------- Modal styles ---------- */
+.detailSection {
+  margin-top: 20px;
+}
+
+.detailRow {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 8px 0;
+}
+
+.detailRow + .detailRow {
+  border-top: 1px solid #f0f0f0;
+}
+
+.detailLabel {
+  color: #878b93;
+  font-size: 14px;
+  font-weight: 500;
+  line-height: 20px;
+}
+
+.detailValue {
+  color: #111;
+  font-size: 14px;
+  font-weight: 500;
+  line-height: 20px;
+  text-align: right;
+}
+
+.statusDot {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  margin-right: 6px;
+}
+
+.statusActive {
+  background-color: #429700;
+}
+
+.statusInactive {
+  background-color: #c94c4c;
+}
+
+.rolesSection {
+  margin-top: 20px;
+}
+
+.rolesTitle {
+  color: #22252b;
+  font-size: 16px;
+  font-weight: 600;
+  line-height: 22px;
+  margin: 0 0 10px;
+}
+
+.rolesList {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  align-items: center;
+}
+
+.roleBadge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 10px;
+  border-radius: 999px;
+  background: #f4f3f1;
+  color: #22252b;
+  font-size: 13px;
+  font-weight: 500;
+  line-height: 18px;
+}
+
+.reasonSection {
+  margin-top: 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.reasonLabel {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+  color: #22252b;
+  font-size: 13px;
+  font-weight: 600;
+  line-height: 18px;
+}
+
+.reasonCounter {
+  color: #878b93;
+  font-size: 12px;
+  font-weight: 500;
+  line-height: 16px;
+  font-variant-numeric: tabular-nums;
+}
+
+.reasonInput {
+  width: 100%;
+  min-height: 72px;
+  padding: 10px 12px;
+  border-radius: 12px;
+  border: 1px solid #dfdfe2;
+  background: #fff;
+  color: #111;
+  font-family: inherit;
+  font-size: 14px;
+  font-weight: 500;
+  line-height: 20px;
+  resize: vertical;
+}
+
+.reasonInput:focus {
+  outline: 2px solid #4a90d9;
+  outline-offset: -1px;
+  border-color: #4a90d9;
+}
+
+.reasonInput:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.modalActions {
+  margin-top: 24px;
+  display: flex;
+  gap: 8px;
+}
+
+.deactivateButton {
+  height: 42px;
+  padding: 0 20px;
+  border-radius: 14px;
+  border: 0;
+  background: #c94c4c;
+  color: #fff;
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 20px;
+  cursor: pointer;
+  width: 100%;
+}
+
+.deactivateButton:hover {
+  opacity: 0.9;
+}
+
+.deactivateButton:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.reactivateButton {
+  height: 42px;
+  padding: 0 20px;
+  border-radius: 14px;
+  border: 0;
+  background: #429700;
+  color: #fff;
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 20px;
+  cursor: pointer;
+  width: 100%;
+}
+
+.reactivateButton:hover {
+  opacity: 0.9;
+}
+
+.reactivateButton:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.modalError {
+  margin-top: 12px;
+  padding: 10px 14px;
+  border-radius: 10px;
+  background: #fef2f2;
+  color: #c94c4c;
+  font-size: 13px;
+  font-weight: 500;
+  line-height: 18px;
+}
+
+@keyframes pulse {
+  0%,
+  100% {
+    opacity: 1;
+  }
+
+  50% {
+    opacity: 0.5;
+  }
+}

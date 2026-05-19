@@ -1,0 +1,35 @@
+# Normalize line endings — keep LF in repo regardless of OS.
+* text=auto eol=lf
+
+# Source code
+*.{js,jsx,mjs,cjs,ts,tsx} text eol=lf
+*.{json,jsonc,json5}      text eol=lf
+*.{md,mdx}                text eol=lf
+*.{yml,yaml}              text eol=lf
+*.{css,scss,less,html}    text eol=lf
+*.{graphql,gql}           text eol=lf
+
+# Shell scripts must always be LF (Husky hooks).
+*.sh        text eol=lf
+.husky/*    text eol=lf
+
+# Windows-only scripts must be CRLF.
+*.{cmd,bat,ps1} text eol=crlf
+
+# Binary assets — Git should not try to diff or merge.
+*.{png,jpg,jpeg,gif,ico,webp,avif,bmp}     binary
+*.{svg}                                     text eol=lf
+*.{woff,woff2,ttf,eot,otf}                 binary
+*.{mp3,mp4,webm,ogg,wav,flac}              binary
+*.{pdf,zip,tar,gz,7z,br}                   binary
+
+# Auto-generated / large files — collapse in `git diff` and PRs.
+package-lock.json     -diff linguist-generated=true
+openapi/openapi.json  -diff linguist-generated=true
+*.min.{js,css}        -diff linguist-generated=true
+*.tsbuildinfo         -diff linguist-generated=true
+
+# GitHub linguist hints — don't count generated files in language stats.
+public/*       linguist-vendored
+.next/**       linguist-generated=true
+coverage/**    linguist-generated=true
