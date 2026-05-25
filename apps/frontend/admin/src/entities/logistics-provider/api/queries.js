@@ -5,7 +5,7 @@ import { DEFAULT_STALE_TIME_MS } from '@/shared/query';
 import {
   fetchProviderAccount,
   fetchProviderAccounts,
-} from './logistics-providers';
+} from './providers';
 import { providerAccountKeys } from './keys';
 
 /**

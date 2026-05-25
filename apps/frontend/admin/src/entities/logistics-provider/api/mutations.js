@@ -6,7 +6,7 @@ import {
   deleteProviderAccount,
   setProviderAccountActive,
   updateProviderAccount,
-} from './logistics-providers';
+} from './providers';
 import { providerAccountKeys } from './keys';
 
 // Mutations only invalidate cache here. The registry `refresh` + toasts are
