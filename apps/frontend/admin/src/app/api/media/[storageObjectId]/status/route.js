@@ -32,7 +32,7 @@ export async function GET(request, { params }) {
   }
 
   const { storageObjectId } = await params;
-  if (!UUID_RE.test(id)) {
+  if (!UUID_RE.test(storageObjectId)) {
     return NextResponse.json(
       {
         error: {
