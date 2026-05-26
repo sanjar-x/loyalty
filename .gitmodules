@@ -1,0 +1,3 @@
+[submodule "apps/frontend/mini-app"]
+	path = apps/frontend/mini-app
+	url = git@github.com:Yokubjanovichh/loyalty-mini-app.git
