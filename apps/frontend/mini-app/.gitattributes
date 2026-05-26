@@ -1,8 +1,0 @@
-* text=auto eol=lf
-*.json text eol=lf
-*.md text eol=lf
-*.{js,jsx,ts,tsx,mjs,cjs} text eol=lf
-
-# Codegen artifacts — never hand-edit, never diff in PR review
-lib/store/__generated__/** linguist-generated=true
-openapi.json text eol=lf
